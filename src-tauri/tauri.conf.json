@@ -46,7 +46,7 @@
       "open": true
     },
     "updater": {
-      "pubkey": "RWRklWuGBykNoWIdl6sHfVSvl3h+pRHsKTAK9DimrtZtCOD31Vfnmf98",
+      "pubkey": "RWRSvseGyYXDHhZKOupl9VdmkPiXR/CoNC//8Yqzxr25793oZVlXZVO+",
       "endpoints": [
         "https://github.com/runkids/ssh-buddy/releases/latest/download/latest.json"
       ]
