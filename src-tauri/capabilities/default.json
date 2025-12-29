@@ -75,6 +75,7 @@
       "identifier": "fs:allow-stat",
       "allow": [{ "path": "$HOME/.ssh/**" }]
     },
-    "os:default"
+    "os:default",
+    "updater:default"
   ]
 }
