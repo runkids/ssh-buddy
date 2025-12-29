@@ -1,0 +1,9 @@
+# Malformed entries (should be gracefully handled)
+incomplete_line
+just_hostname
+
+# Empty key data
+github.com
+
+# Valid entry for reference
+github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl

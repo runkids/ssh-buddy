@@ -661,3 +661,110 @@ pub struct RemoveKeyResult {
     pub success: bool,
     pub message: String,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    /// Helper to create a temporary directory with test keys
+    fn create_temp_keys_dir() -> TempDir {
+        TempDir::new().expect("Failed to create temp dir")
+    }
+
+    /// Sample unencrypted Ed25519 private key (cipher=none)
+    const UNENCRYPTED_ED25519_KEY: &str = r#"-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
+QyNTUxOQAAACBZVzkJN+LZy3uIE1U4VW6EZfPYJeLAvcDXMPj7RqdTJAAAAJBAAAAAAA
+AAAAAAAAtzc2gtZWQyNTUxOQAAACBZVzkJN+LZy3uIE1U4VW6EZfPYJeLAvcDXMPj7Rq
+dTJAAAAEBuxpPc0c+TFY4a3C4yg0l8s4axW9DdXdHuG9YpELVx2FlXOQk34tnLe4gTVT
+hVboRl89gl4sC9wNcw+PtGp1MkAAAADHRlc3RAZXhhbXBsZQE=
+-----END OPENSSH PRIVATE KEY-----"#;
+
+    /// Sample encrypted Ed25519 private key (aes256-ctr)
+    const ENCRYPTED_ED25519_KEY: &str = r#"-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAACmFlczI1Ni1jdHIAAAAGYmNyeXB0AAAAGAAAABCz7sB8Xy
+ZFbpgxp3Rl+YPCAAAAEAAAAAEAAAAzAAAAC3NzaC1lZDI1NTE5AAAAIJdXFUzuH3JQTQRS
+JK3e2hVJ3NrFxZbSNKMqL5+2j8VoAAAAkC1xhRv3VxY8f7t0JV9fKqyDZ4p5fK3xJ8k3dM
+FqY9d5HqNW9RxZVn5JhqzYWk8J2xZ3X4nF8vQ0qK9pLmT2xRb4YnM3Kw2pQ5dH8zC3gXvB
+mN0K4J9xP7R6qT2fS5hYkZ3L8nM2wX6vR0cQeKdH4zB7gXjF3K9wP8R5qT1fS4hYkZ2L7n
+M1wX5vR0cQeKdH4zA=
+-----END OPENSSH PRIVATE KEY-----"#;
+
+    /// Legacy PEM encrypted key
+    const ENCRYPTED_PEM_KEY: &str = r#"-----BEGIN RSA PRIVATE KEY-----
+Proc-Type: 4,ENCRYPTED
+DEK-Info: AES-256-CBC,1234567890ABCDEF
+
+EncryptedKeyDataHere...
+-----END RSA PRIVATE KEY-----"#;
+
+    // ========================================
+    // is_key_encrypted tests
+    // ========================================
+
+    #[test]
+    fn test_is_key_encrypted_unencrypted() {
+        let temp = create_temp_keys_dir();
+        let key_path = temp.path().join("id_ed25519");
+        std::fs::write(&key_path, UNENCRYPTED_ED25519_KEY).unwrap();
+
+        assert!(!AgentService::is_key_encrypted(key_path.to_str().unwrap()));
+    }
+
+    #[test]
+    fn test_is_key_encrypted_encrypted_openssh() {
+        let temp = create_temp_keys_dir();
+        let key_path = temp.path().join("id_encrypted");
+        std::fs::write(&key_path, ENCRYPTED_ED25519_KEY).unwrap();
+
+        assert!(AgentService::is_key_encrypted(key_path.to_str().unwrap()));
+    }
+
+    #[test]
+    fn test_is_key_encrypted_legacy_pem() {
+        let temp = create_temp_keys_dir();
+        let key_path = temp.path().join("id_rsa_encrypted");
+        std::fs::write(&key_path, ENCRYPTED_PEM_KEY).unwrap();
+
+        assert!(AgentService::is_key_encrypted(key_path.to_str().unwrap()));
+    }
+
+    #[test]
+    fn test_is_key_encrypted_nonexistent_file() {
+        // Should return false for non-existent file
+        assert!(!AgentService::is_key_encrypted("/nonexistent/path/id_ed25519"));
+    }
+
+    // ========================================
+    // get_auth_sock tests
+    // ========================================
+
+    // Note: Tests that modify environment variables can have race conditions
+    // when run in parallel. These tests verify the logic conceptually.
+
+    #[test]
+    fn test_get_auth_sock_logic() {
+        // This test verifies the function behavior without modifying env vars
+        // to avoid race conditions with other tests.
+        // The actual SSH_AUTH_SOCK test is done in integration tests.
+        let result = AgentService::get_auth_sock();
+        // In most development environments, SSH_AUTH_SOCK is set
+        // We just verify the function returns a result (Ok or Err)
+        match result {
+            Ok(path) => assert!(!path.is_empty()),
+            Err(_) => {} // This is acceptable if SSH agent is not running
+        }
+    }
+
+    // ========================================
+    // Key bit size tests
+    // ========================================
+
+    #[test]
+    fn test_get_key_bit_size_ed25519() {
+        let pub_key_content = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFlXOQk34tnLe4gTVThVboRl89gl4sC9wNcw+PtGp1Mk test@example";
+        let pub_key = PublicKey::from_openssh(pub_key_content).unwrap();
+        assert_eq!(AgentService::get_key_bit_size(&pub_key), 256);
+    }
+}

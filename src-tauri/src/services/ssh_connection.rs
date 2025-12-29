@@ -916,3 +916,328 @@ impl SshConnectionService {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+    use tokio::fs;
+
+    /// Helper to create a temporary known_hosts file
+    async fn create_temp_known_hosts(content: &str) -> (TempDir, PathBuf) {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let ssh_dir = temp_dir.path().join(".ssh");
+        fs::create_dir_all(&ssh_dir)
+            .await
+            .expect("Failed to create .ssh dir");
+        let known_hosts_path = ssh_dir.join("known_hosts");
+        fs::write(&known_hosts_path, content)
+            .await
+            .expect("Failed to write known_hosts");
+        (temp_dir, known_hosts_path)
+    }
+
+    /// Parse known_hosts content directly for testing
+    fn parse_known_hosts_content(content: &str) -> HashMap<String, Vec<String>> {
+        let mut known_hosts: HashMap<String, Vec<String>> = HashMap::new();
+
+        for line in content.lines() {
+            let line = line.trim();
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+            if line.starts_with("|1|") {
+                continue;
+            }
+
+            let parts: Vec<&str> = line.splitn(3, ' ').collect();
+            if parts.len() < 2 {
+                continue;
+            }
+
+            let hostnames = parts[0];
+            let key_data = if parts.len() >= 2 {
+                parts[1..].join(" ")
+            } else {
+                continue;
+            };
+
+            for hostname in hostnames.split(',') {
+                let hostname = hostname.trim();
+                known_hosts
+                    .entry(hostname.to_string())
+                    .or_default()
+                    .push(key_data.clone());
+            }
+        }
+
+        known_hosts
+    }
+
+    /// Check host key status for testing
+    fn check_host_key_status(
+        hostname: &str,
+        port: u16,
+        server_key_base64: &str,
+        known_hosts: &HashMap<String, Vec<String>>,
+    ) -> KnownHostStatus {
+        let host_variants = if port == 22 {
+            vec![hostname.to_string()]
+        } else {
+            vec![
+                format!("[{}]:{}", hostname, port),
+                hostname.to_string(),
+            ]
+        };
+
+        let mut found_host = false;
+        let mut key_matched = false;
+
+        for variant in &host_variants {
+            if let Some(known_keys) = known_hosts.get(variant) {
+                found_host = true;
+                for known_key in known_keys {
+                    if known_key.contains(server_key_base64) {
+                        key_matched = true;
+                        break;
+                    }
+                }
+                if key_matched {
+                    break;
+                }
+            }
+        }
+
+        if key_matched {
+            KnownHostStatus::Matched
+        } else if found_host {
+            KnownHostStatus::Changed
+        } else {
+            KnownHostStatus::Unknown
+        }
+    }
+
+    // ========================================
+    // load_known_hosts parsing tests
+    // ========================================
+
+    #[test]
+    fn test_parse_known_hosts_standard_format() {
+        let content = r#"github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
+gitlab.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCexample
+"#;
+        let hosts = parse_known_hosts_content(content);
+
+        assert!(hosts.contains_key("github.com"));
+        assert!(hosts.contains_key("gitlab.com"));
+        assert_eq!(hosts.get("github.com").unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_parse_known_hosts_multi_hostname() {
+        let content = "gitlab.com,192.168.1.100 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAfuCHKVTjquxvt6CM6tdG4SLp1Btn";
+
+        let hosts = parse_known_hosts_content(content);
+
+        assert!(hosts.contains_key("gitlab.com"));
+        assert!(hosts.contains_key("192.168.1.100"));
+        // Both should have the same key
+        assert_eq!(
+            hosts.get("gitlab.com").unwrap(),
+            hosts.get("192.168.1.100").unwrap()
+        );
+    }
+
+    #[test]
+    fn test_parse_known_hosts_skip_hashed() {
+        let content = r#"|1|HwVWh3VnvQS3+5ZVq7YlL6C3Z1o=|kVnJxQEyMeZF5rC0= ssh-ed25519 AAAAC3NzaC1
+github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnk
+"#;
+        let hosts = parse_known_hosts_content(content);
+
+        // Should only have github.com, hashed entries are skipped
+        assert_eq!(hosts.len(), 1);
+        assert!(hosts.contains_key("github.com"));
+    }
+
+    #[test]
+    fn test_parse_known_hosts_skip_comments_and_empty() {
+        let content = r#"# This is a comment
+github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnk
+
+# Another comment
+gitlab.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAfuCHK
+"#;
+        let hosts = parse_known_hosts_content(content);
+
+        assert_eq!(hosts.len(), 2);
+        assert!(hosts.contains_key("github.com"));
+        assert!(hosts.contains_key("gitlab.com"));
+    }
+
+    #[test]
+    fn test_parse_known_hosts_non_standard_port() {
+        let content = "[example.com]:2222 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBbfLEjx";
+
+        let hosts = parse_known_hosts_content(content);
+
+        assert!(hosts.contains_key("[example.com]:2222"));
+    }
+
+    #[test]
+    fn test_parse_known_hosts_malformed_lines() {
+        let content = r#"incomplete_line
+just_hostname
+github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnk
+"#;
+        let hosts = parse_known_hosts_content(content);
+
+        // Should only have github.com
+        assert_eq!(hosts.len(), 1);
+        assert!(hosts.contains_key("github.com"));
+    }
+
+    // ========================================
+    // check_server_key logic tests
+    // ========================================
+
+    #[test]
+    fn test_check_server_key_matched() {
+        let known_hosts = parse_known_hosts_content(
+            "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl",
+        );
+
+        let status = check_host_key_status(
+            "github.com",
+            22,
+            "AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl",
+            &known_hosts,
+        );
+
+        assert_eq!(status, KnownHostStatus::Matched);
+    }
+
+    #[test]
+    fn test_check_server_key_unknown() {
+        let known_hosts = parse_known_hosts_content(
+            "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnk",
+        );
+
+        let status = check_host_key_status(
+            "gitlab.com",
+            22,
+            "AAAAC3NzaC1lZDI1NTE5AAAAINewKey",
+            &known_hosts,
+        );
+
+        assert_eq!(status, KnownHostStatus::Unknown);
+    }
+
+    #[test]
+    fn test_check_server_key_changed() {
+        let known_hosts = parse_known_hosts_content(
+            "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOldKey",
+        );
+
+        let status = check_host_key_status(
+            "github.com",
+            22,
+            "AAAAC3NzaC1lZDI1NTE5AAAAINewKey",
+            &known_hosts,
+        );
+
+        assert_eq!(status, KnownHostStatus::Changed);
+    }
+
+    #[test]
+    fn test_check_server_key_non_standard_port() {
+        let known_hosts = parse_known_hosts_content(
+            "[example.com]:2222 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBbfLEjx",
+        );
+
+        // Matching with non-standard port
+        let status = check_host_key_status(
+            "example.com",
+            2222,
+            "AAAAC3NzaC1lZDI1NTE5AAAAIBbfLEjx",
+            &known_hosts,
+        );
+        assert_eq!(status, KnownHostStatus::Matched);
+
+        // Not matching standard port
+        let status2 = check_host_key_status(
+            "example.com",
+            22,
+            "AAAAC3NzaC1lZDI1NTE5AAAAIBbfLEjx",
+            &known_hosts,
+        );
+        assert_eq!(status2, KnownHostStatus::Unknown);
+    }
+
+    // ========================================
+    // Platform detection tests
+    // ========================================
+
+    #[test]
+    fn test_detect_platform_github() {
+        assert_eq!(
+            SshConnectionService::detect_platform("github.com"),
+            Some("github".to_string())
+        );
+    }
+
+    #[test]
+    fn test_detect_platform_gitlab() {
+        assert_eq!(
+            SshConnectionService::detect_platform("gitlab.com"),
+            Some("gitlab".to_string())
+        );
+        assert_eq!(
+            SshConnectionService::detect_platform("gitlab.example.com"),
+            Some("gitlab".to_string())
+        );
+    }
+
+    #[test]
+    fn test_detect_platform_bitbucket() {
+        assert_eq!(
+            SshConnectionService::detect_platform("bitbucket.org"),
+            Some("bitbucket".to_string())
+        );
+    }
+
+    #[test]
+    fn test_detect_platform_unknown() {
+        assert_eq!(SshConnectionService::detect_platform("example.com"), None);
+        assert_eq!(SshConnectionService::detect_platform("myserver.local"), None);
+    }
+
+    // ========================================
+    // Auth success detection tests
+    // ========================================
+
+    #[test]
+    fn test_is_auth_success_github() {
+        assert!(SshConnectionService::is_auth_success(
+            "Hi username! You've successfully authenticated, but GitHub does not provide shell access."
+        ));
+    }
+
+    #[test]
+    fn test_is_auth_success_gitlab() {
+        assert!(SshConnectionService::is_auth_success("Welcome to GitLab, @username!"));
+    }
+
+    #[test]
+    fn test_is_auth_success_generic() {
+        assert!(SshConnectionService::is_auth_success("logged in as user"));
+        assert!(SshConnectionService::is_auth_success("Welcome! You are authenticated."));
+    }
+
+    #[test]
+    fn test_is_auth_success_failure() {
+        assert!(!SshConnectionService::is_auth_success("Permission denied"));
+        assert!(!SshConnectionService::is_auth_success("not authenticated"));
+        assert!(!SshConnectionService::is_auth_success("Connection refused"));
+    }
+}

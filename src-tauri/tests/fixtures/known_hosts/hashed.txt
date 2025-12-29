@@ -1,0 +1,5 @@
+# Hashed known_hosts format (should be skipped during parsing)
+|1|HwVWh3VnvQS3+5ZVq7YlL6C3Z1o=|kVnJxQEyMeZF5rC0vhNqwZ0V5Hc= ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
+|1|Ab3cD4Ef5gH6iJ7kL8mN9oP0qR=|1sT2uV3wX4yZ5aB6cD7eF8gH9iJ= ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQExample
+# Regular entry mixed in
+github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl

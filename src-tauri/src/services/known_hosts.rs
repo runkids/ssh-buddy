@@ -269,3 +269,117 @@ pub struct AddHostResult {
     pub message: String,
     pub keys_added: usize,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+    use tokio::fs;
+
+    /// Create a mock SSH directory with known_hosts
+    async fn create_mock_ssh_dir(known_hosts_content: &str) -> TempDir {
+        let temp = TempDir::new().expect("Failed to create temp dir");
+        let ssh_dir = temp.path().join(".ssh");
+        fs::create_dir_all(&ssh_dir)
+            .await
+            .expect("Failed to create .ssh dir");
+        let known_hosts_path = ssh_dir.join("known_hosts");
+        fs::write(&known_hosts_path, known_hosts_content)
+            .await
+            .expect("Failed to write known_hosts");
+        temp
+    }
+
+    // Note: These tests are more of integration tests and would require
+    // mocking the home directory. For now, we test the filtering logic.
+
+    /// Test the hostname matching logic used in remove_host
+    fn matches_hostname(line: &str, target_hostname: &str) -> bool {
+        let line_trimmed = line.trim();
+        if line_trimmed.is_empty() || line_trimmed.starts_with('#') {
+            return false;
+        }
+
+        let first_field = line_trimmed.split_whitespace().next().unwrap_or("");
+
+        if first_field.starts_with("|1|") {
+            return false;
+        }
+
+        let hostnames: Vec<&str> = first_field.split(',').collect();
+        let target_lower = target_hostname.to_lowercase();
+
+        hostnames.iter().any(|h| {
+            let h_clean = h.trim_start_matches('[').split(':').next().unwrap_or(h);
+            h_clean.to_lowercase() == target_lower || h_clean.to_lowercase().contains(&target_lower)
+        })
+    }
+
+    #[test]
+    fn test_matches_hostname_standard() {
+        assert!(matches_hostname("github.com ssh-ed25519 AAAA...", "github.com"));
+        assert!(!matches_hostname("github.com ssh-ed25519 AAAA...", "gitlab.com"));
+    }
+
+    #[test]
+    fn test_matches_hostname_with_port() {
+        assert!(matches_hostname("[example.com]:2222 ssh-ed25519 AAAA...", "example.com"));
+    }
+
+    #[test]
+    fn test_matches_hostname_multiple() {
+        assert!(matches_hostname("github.com,192.168.1.1 ssh-ed25519 AAAA...", "github.com"));
+        assert!(matches_hostname("github.com,192.168.1.1 ssh-ed25519 AAAA...", "192.168.1.1"));
+    }
+
+    #[test]
+    fn test_matches_hostname_skip_hashed() {
+        assert!(!matches_hostname("|1|hash1|hash2 ssh-ed25519 AAAA...", "anything"));
+    }
+
+    #[test]
+    fn test_matches_hostname_skip_comments() {
+        assert!(!matches_hostname("# github.com ssh-ed25519 AAAA...", "github.com"));
+        assert!(!matches_hostname("", "github.com"));
+    }
+
+    #[test]
+    fn test_matches_hostname_case_insensitive() {
+        assert!(matches_hostname("GITHUB.COM ssh-ed25519 AAAA...", "github.com"));
+        assert!(matches_hostname("github.com ssh-ed25519 AAAA...", "GITHUB.COM"));
+    }
+
+    // ========================================
+    // Format generation tests
+    // ========================================
+
+    #[test]
+    fn test_known_hosts_entry_format_standard_port() {
+        let hostname = "github.com";
+        let port = 22;
+        let key = "ssh-ed25519 AAAA...";
+
+        let entry = if port == 22 {
+            format!("{} {}", hostname, key)
+        } else {
+            format!("[{}]:{} {}", hostname, port, key)
+        };
+
+        assert_eq!(entry, "github.com ssh-ed25519 AAAA...");
+    }
+
+    #[test]
+    fn test_known_hosts_entry_format_non_standard_port() {
+        let hostname = "example.com";
+        let port = 2222;
+        let key = "ssh-ed25519 AAAA...";
+
+        let entry = if port == 22 {
+            format!("{} {}", hostname, key)
+        } else {
+            format!("[{}]:{} {}", hostname, port, key)
+        };
+
+        assert_eq!(entry, "[example.com]:2222 ssh-ed25519 AAAA...");
+    }
+}

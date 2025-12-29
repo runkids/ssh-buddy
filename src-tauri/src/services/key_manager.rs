@@ -385,6 +385,20 @@ impl KeyManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tempfile::TempDir;
+    use tokio::fs;
+
+    fn create_test_manager() -> (KeyManager, TempDir) {
+        let temp = TempDir::new().expect("Failed to create temp dir");
+        let ssh_dir = temp.path().join(".ssh");
+        std::fs::create_dir_all(&ssh_dir).expect("Failed to create .ssh dir");
+        let manager = KeyManager { ssh_dir };
+        (manager, temp)
+    }
+
+    // ========================================
+    // infer_key_type_from_name tests
+    // ========================================
 
     #[test]
     fn test_infer_key_type() {
@@ -402,5 +416,232 @@ mod tests {
             KeyType::Ecdsa
         );
         assert_eq!(manager.infer_key_type_from_name("my_key"), KeyType::Unknown);
+    }
+
+    #[test]
+    fn test_infer_key_type_dsa() {
+        let manager = KeyManager {
+            ssh_dir: PathBuf::from("/tmp/.ssh"),
+        };
+
+        assert_eq!(manager.infer_key_type_from_name("id_dsa"), KeyType::Dsa);
+        assert_eq!(
+            manager.infer_key_type_from_name("my_dsa_key"),
+            KeyType::Dsa
+        );
+    }
+
+    #[test]
+    fn test_infer_key_type_case_insensitive() {
+        let manager = KeyManager {
+            ssh_dir: PathBuf::from("/tmp/.ssh"),
+        };
+
+        assert_eq!(
+            manager.infer_key_type_from_name("ID_ED25519"),
+            KeyType::Ed25519
+        );
+        assert_eq!(manager.infer_key_type_from_name("Id_Rsa"), KeyType::Rsa);
+    }
+
+    // ========================================
+    // KeyType::from tests
+    // ========================================
+
+    #[test]
+    fn test_key_type_from_algorithm() {
+        assert_eq!(KeyType::from("ssh-ed25519"), KeyType::Ed25519);
+        assert_eq!(KeyType::from("ssh-rsa"), KeyType::Rsa);
+        assert_eq!(KeyType::from("ecdsa-sha2-nistp256"), KeyType::Ecdsa);
+        assert_eq!(KeyType::from("ecdsa-sha2-nistp384"), KeyType::Ecdsa);
+        assert_eq!(KeyType::from("ecdsa-sha2-nistp521"), KeyType::Ecdsa);
+        assert_eq!(KeyType::from("ssh-dss"), KeyType::Dsa);
+        assert_eq!(KeyType::from("unknown-algo"), KeyType::Unknown);
+    }
+
+    // ========================================
+    // validate_key_name tests
+    // ========================================
+
+    #[test]
+    fn test_validate_key_name_valid() {
+        assert!(validate_key_name("id_ed25519").is_ok());
+        assert!(validate_key_name("my_custom_key").is_ok());
+        assert!(validate_key_name("key-with-dashes").is_ok());
+        assert!(validate_key_name("key123").is_ok());
+    }
+
+    #[test]
+    fn test_validate_key_name_path_traversal() {
+        assert!(validate_key_name("../id_ed25519").is_err());
+        assert!(validate_key_name("../../etc/passwd").is_err());
+        assert!(validate_key_name("foo/../bar").is_err());
+    }
+
+    #[test]
+    fn test_validate_key_name_absolute_path() {
+        assert!(validate_key_name("/etc/passwd").is_err());
+        assert!(validate_key_name("/home/user/.ssh/id_ed25519").is_err());
+    }
+
+    #[test]
+    fn test_validate_key_name_empty() {
+        assert!(validate_key_name("").is_err());
+    }
+
+    // ========================================
+    // Generate key options validation tests
+    // ========================================
+
+    #[test]
+    fn test_generate_key_options_ed25519() {
+        let options = GenerateKeyOptions {
+            name: "test_key".to_string(),
+            key_type: "ed25519".to_string(),
+            comment: Some("test@example.com".to_string()),
+            passphrase: None,
+        };
+
+        assert_eq!(options.name, "test_key");
+        assert_eq!(options.key_type, "ed25519");
+        assert_eq!(options.comment, Some("test@example.com".to_string()));
+    }
+
+    #[test]
+    fn test_generate_key_options_rsa() {
+        let options = GenerateKeyOptions {
+            name: "test_rsa".to_string(),
+            key_type: "rsa".to_string(),
+            comment: None,
+            passphrase: Some("secret".to_string()),
+        };
+
+        assert_eq!(options.key_type, "rsa");
+        assert!(options.passphrase.is_some());
+    }
+
+    // ========================================
+    // Async tests with tokio
+    // ========================================
+
+    #[tokio::test]
+    async fn test_list_keys_empty_dir() {
+        let (manager, _temp) = create_test_manager();
+
+        let keys = manager.list_keys().await.unwrap();
+        assert!(keys.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_list_keys_with_key() {
+        let (manager, _temp) = create_test_manager();
+
+        // Create a sample public key
+        let pub_key_content =
+            "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFlXOQk34tnLe4gTVThVboRl89gl4sC9wNcw+PtGp1Mk test@example";
+        let pub_key_path = manager.ssh_dir.join("id_test.pub");
+        fs::write(&pub_key_path, pub_key_content)
+            .await
+            .expect("Failed to write pub key");
+
+        // Create corresponding private key placeholder
+        let priv_key_path = manager.ssh_dir.join("id_test");
+        fs::write(&priv_key_path, "placeholder")
+            .await
+            .expect("Failed to write priv key");
+
+        let keys = manager.list_keys().await.unwrap();
+        assert_eq!(keys.len(), 1);
+        assert_eq!(keys[0].name, "id_test");
+        assert_eq!(keys[0].key_type, KeyType::Ed25519);
+    }
+
+    #[tokio::test]
+    async fn test_read_public_key_not_found() {
+        let (manager, _temp) = create_test_manager();
+
+        let result = manager.read_public_key("nonexistent").await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_read_public_key_path_traversal() {
+        let (manager, _temp) = create_test_manager();
+
+        let result = manager.read_public_key("../../../etc/passwd").await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_delete_key_not_found() {
+        let (manager, _temp) = create_test_manager();
+
+        let result = manager.delete_key("nonexistent").await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_generate_and_delete_ed25519_key() {
+        let (manager, _temp) = create_test_manager();
+
+        let options = GenerateKeyOptions {
+            name: "test_gen_key".to_string(),
+            key_type: "ed25519".to_string(),
+            comment: Some("test@example.com".to_string()),
+            passphrase: None,
+        };
+
+        // Generate key
+        let key_info = manager.generate_key(options).await.unwrap();
+        assert_eq!(key_info.name, "test_gen_key");
+        assert_eq!(key_info.key_type, KeyType::Ed25519);
+        assert!(key_info.fingerprint.is_some());
+
+        // Verify files exist
+        let priv_path = manager.ssh_dir.join("test_gen_key");
+        let pub_path = manager.ssh_dir.join("test_gen_key.pub");
+        assert!(priv_path.exists());
+        assert!(pub_path.exists());
+
+        // Delete key
+        manager.delete_key("test_gen_key").await.unwrap();
+        assert!(!priv_path.exists());
+        assert!(!pub_path.exists());
+    }
+
+    #[tokio::test]
+    async fn test_generate_key_already_exists() {
+        let (manager, _temp) = create_test_manager();
+
+        // Create existing key
+        let existing_path = manager.ssh_dir.join("existing_key");
+        fs::write(&existing_path, "existing")
+            .await
+            .expect("Failed to write existing key");
+
+        let options = GenerateKeyOptions {
+            name: "existing_key".to_string(),
+            key_type: "ed25519".to_string(),
+            comment: None,
+            passphrase: None,
+        };
+
+        let result = manager.generate_key(options).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_generate_key_invalid_type() {
+        let (manager, _temp) = create_test_manager();
+
+        let options = GenerateKeyOptions {
+            name: "test_invalid".to_string(),
+            key_type: "invalid_type".to_string(),
+            comment: None,
+            passphrase: None,
+        };
+
+        let result = manager.generate_key(options).await;
+        assert!(result.is_err());
     }
 }
