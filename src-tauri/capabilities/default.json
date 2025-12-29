@@ -14,7 +14,12 @@
       "allow": [
         { "name": "ssh-keygen", "cmd": "ssh-keygen", "args": true },
         { "name": "ssh", "cmd": "ssh", "args": true },
-        { "name": "ssh-keyscan", "cmd": "ssh-keyscan", "args": true }
+        { "name": "ssh-keyscan", "cmd": "ssh-keyscan", "args": true },
+        { "name": "ssh-add", "cmd": "ssh-add", "args": true },
+        { "name": "stat", "cmd": "stat", "args": true },
+        { "name": "chmod", "cmd": "chmod", "args": true },
+        { "name": "icacls", "cmd": "icacls", "args": true },
+        { "name": "whoami", "cmd": "whoami", "args": true }
       ]
     },
     {
@@ -65,6 +70,11 @@
     {
       "identifier": "fs:allow-copy-file",
       "allow": [{ "path": "$HOME/.ssh/**" }]
-    }
+    },
+    {
+      "identifier": "fs:allow-stat",
+      "allow": [{ "path": "$HOME/.ssh/**" }]
+    },
+    "os:default"
   ]
 }

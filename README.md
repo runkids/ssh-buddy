@@ -9,8 +9,7 @@
 </p>
 
 <p align="center">
-  A modern, offline-first SSH configuration manager for macOS and Windows.<br>
-  Manage your SSH hosts and keys without the hassle of editing config files manually.
+  A lightweight, local SSH configuration manager for macOS and Windows.
 </p>
 
 <p align="center">
@@ -24,11 +23,11 @@
   <img alt="Release" src="https://img.shields.io/github/v/release/runkids/ssh-buddy">
 </p>
 
-## Why SSH Buddy
+## 💡 Why SSH Buddy
 
 SSH Buddy keeps SSH management fast and local. No accounts, no cloud sync, and no hidden config edits. You get a clean UI, smart templates, and safe previews for every change.
 
-## Screenshots
+## 📸 Screenshots
 
 <p align="center">
   <img src="public/screenshots/hosts.png" alt="Hosts view" width="780">
@@ -39,42 +38,17 @@ SSH Buddy keeps SSH management fast and local. No accounts, no cloud sync, and n
 </p>
 
 
-## Features
+## ✨ Features
 
-### Host Management
-- **Visual Config Editor** - Add, edit, and remove SSH hosts through an intuitive interface
-- **Smart Templates** - Quickly create common configurations (bastion, port forwarding, jump hosts)
-- **Tagging & Search** - Organize hosts with tags and filter them instantly
-- **Favorites** - Mark frequently used hosts for quick access
-- **Validation** - Get helpful warnings before applying changes
+🖥️ **Host Management** - Visual editor, smart templates, tagging, favorites & validation
 
-### Key Management
-- **Key Overview** - View all your SSH keys in one place
-- **Generate Keys** - Create new Ed25519 or RSA key pairs
-- **Copy Public Keys** - One-click copy for authorized_keys setup
+🔑 **Key Management** - Overview all keys, generate Ed25519/RSA, one-click copy
 
-### Security
-- **Health Checks** - Scan for insecure key types and weak algorithms
-- **Known Hosts Review** - Clean up stale or duplicate entries
-- **Algorithm Warnings** - Get notified about deprecated ciphers
+🛡️ **Security** - Health checks, known hosts review, algorithm warnings
 
-### User Experience
-- **Onboarding Guide** - Learn SSH basics with friendly explanations
-- **Inline Help** - Contextual explanations for every option
-- **Change Preview** - Review changes before saving
-- **Dark Theme** - Modern, comfortable interface
-- **Auto Updates** - Check for and install updates with one click
+🎨 **User Experience** - Onboarding guide, inline help, change preview, dark theme, auto updates
 
-## Offline-First
-
-SSH Buddy is designed to work completely offline. Your configuration and keys never leave your device:
-
-- No cloud sync
-- No remote telemetry
-- No account required
-- All data stays in `~/.ssh/`
-
-## Installation
+## 📦 Installation
 
 ### macOS
 
@@ -89,7 +63,7 @@ Or download the latest `.dmg` from Releases and drag to Applications.
 
 Download the latest `.msi` from Releases and run the installer.
 
-## Development
+## 🛠️ Development
 
 SSH Buddy is built with:
 - [Tauri](https://tauri.app/) - Lightweight native app framework
@@ -116,6 +90,10 @@ pnpm dev:tauri
 pnpm tauri build
 ```
 
-## License
+## ⭐ Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=runkids/ssh-buddy&type=Date)](https://star-history.com/#runkids/ssh-buddy&Date)
+
+## 📄 License
 
 MIT

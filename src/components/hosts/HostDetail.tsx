@@ -22,6 +22,10 @@ import {
   Globe2,
   ShieldQuestion,
   Plus,
+  Lock,
+  KeySquare,
+  ShieldAlert,
+  FileQuestion,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
@@ -37,9 +41,12 @@ import {
   testSSHConnection,
   removeKnownHost,
   addKnownHost,
+  addKeyToAgent,
   type SSHConnectionTestResult,
   type SSHErrorType,
 } from '@/lib/ssh-service'
+import { fixKeyPermissions } from '@/lib/platform-utils'
+import { PreflightPanel } from './PreflightPanel'
 import { cn } from '@/lib/utils'
 import { ContextualTip } from '@/components/common/ContextualTip'
 import {
@@ -120,13 +127,17 @@ export function HostDetail({
   const [isTesting, setIsTesting] = useState(false)
   const [isRemovingHost, setIsRemovingHost] = useState(false)
   const [isAddingHost, setIsAddingHost] = useState(false)
+  const [isFixingPermissions, setIsFixingPermissions] = useState(false)
+  const [isAddingToAgent, setIsAddingToAgent] = useState(false)
+  const [showPreflight, setShowPreflight] = useState(false)
   const [testResult, setTestResult] = useState<SSHConnectionTestResult | null>(
     null
   )
 
-  // Clear test result when host changes
+  // Clear test result and preflight when host changes
   useEffect(() => {
     setTestResult(null)
+    setShowPreflight(false)
   }, [host.Host])
 
   const handleRemoveKnownHost = async () => {
@@ -158,6 +169,48 @@ export function HostDetail({
       console.error('Failed to add known host:', error)
     } finally {
       setIsAddingHost(false)
+    }
+  }
+
+  const handleFixPermissions = async () => {
+    const keyPath = testResult?.errorDetails?.fixParams?.keyPath
+    if (!keyPath) return
+
+    setIsFixingPermissions(true)
+    try {
+      const result = await fixKeyPermissions(keyPath)
+      if (result.success) {
+        // Clear result and re-test
+        setTestResult(null)
+        handleTestConnection()
+      }
+    } catch (error) {
+      console.error('Failed to fix permissions:', error)
+    } finally {
+      setIsFixingPermissions(false)
+    }
+  }
+
+  const handleAddToAgent = async () => {
+    const keyPath =
+      testResult?.errorDetails?.fixParams?.keyPath || host.IdentityFile
+    if (!keyPath) return
+
+    setIsAddingToAgent(true)
+    try {
+      const result = await addKeyToAgent(keyPath)
+      if (result.success) {
+        // Clear result and re-test
+        setTestResult(null)
+        handleTestConnection()
+      } else if (result.needsPassphrase) {
+        // Show message that user needs to run ssh-add manually
+        console.log('Key requires passphrase - user needs to run ssh-add manually')
+      }
+    } catch (error) {
+      console.error('Failed to add key to agent:', error)
+    } finally {
+      setIsAddingToAgent(false)
     }
   }
 
@@ -346,6 +399,18 @@ export function HostDetail({
         </div>
       )}
 
+      {/* Pre-flight Checks Panel */}
+      {showPreflight && (
+        <PreflightPanel
+          host={host}
+          onComplete={() => {}}
+          onContinue={() => {
+            setShowPreflight(false)
+            handleTestConnection()
+          }}
+        />
+      )}
+
       {/* Quick Connect Command */}
       <div className="rounded-xl border border-border bg-card overflow-hidden">
         <div className="flex items-center justify-between gap-4 p-4">
@@ -363,6 +428,16 @@ export function HostDetail({
             </div>
           </div>
           <div className="flex gap-2">
+            {!showPreflight && host.IdentityFile && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowPreflight(true)}
+                className="gap-2 text-muted-foreground"
+              >
+                Pre-flight
+              </Button>
+            )}
             <Button
               variant="secondary"
               size="sm"
@@ -412,8 +487,12 @@ export function HostDetail({
             result={testResult}
             onRemoveKnownHost={handleRemoveKnownHost}
             onAddKnownHost={handleAddKnownHost}
+            onFixPermissions={handleFixPermissions}
+            onAddToAgent={handleAddToAgent}
             isRemovingHost={isRemovingHost}
             isAddingHost={isAddingHost}
+            isFixingPermissions={isFixingPermissions}
+            isAddingToAgent={isAddingToAgent}
           />
         )}
       </div>
@@ -549,14 +628,93 @@ const errorConfigs: Record<
     description: 'An unexpected error occurred.',
     suggestions: [],
   },
+  // Extended error types for enhanced diagnostics
+  permission_denied_key_permissions: {
+    icon: Lock,
+    title: 'Key Permission Issue',
+    description:
+      'Your private key file permissions are too open. SSH refuses to use it for security reasons.',
+    suggestions: [
+      'Private keys should have 600 permissions (owner read/write only)',
+      'Run: chmod 600 ~/.ssh/your_key',
+    ],
+    canFix: true,
+  },
+  permission_denied_key_not_in_agent: {
+    icon: KeySquare,
+    title: 'Key Not in SSH Agent',
+    description:
+      'No keys are loaded in your SSH agent. The key may require a passphrase.',
+    suggestions: [
+      'Add your key to the SSH agent: ssh-add ~/.ssh/your_key',
+      'If using macOS Keychain: ssh-add --apple-use-keychain ~/.ssh/your_key',
+    ],
+    canFix: true,
+  },
+  permission_denied_wrong_key: {
+    icon: KeyRound,
+    title: 'Wrong Key Used',
+    description:
+      'Multiple keys were tried but none were accepted by the server.',
+    suggestions: [
+      'Verify the correct IdentityFile is configured for this host',
+      'Check that your public key is added to the remote service',
+      'Try using IdentitiesOnly yes in your SSH config',
+    ],
+  },
+  permission_denied_passphrase: {
+    icon: KeySquare,
+    title: 'Passphrase Required',
+    description:
+      'Your key requires a passphrase, but the connection test cannot prompt for it.',
+    suggestions: [
+      'Add your key to the SSH agent first',
+      'The passphrase will be stored securely in the agent',
+    ],
+    canFix: true,
+  },
+  permission_denied_auth_method: {
+    icon: ShieldAlert,
+    title: 'Authentication Method Not Accepted',
+    description:
+      'The server does not accept public key authentication or your key type.',
+    suggestions: [
+      'Check if the server allows publickey authentication',
+      'Your key algorithm may not be supported by the server',
+      'Try generating a new Ed25519 key',
+    ],
+  },
+  identity_file_not_found: {
+    icon: FileQuestion,
+    title: 'Identity File Not Found',
+    description: 'The configured identity file does not exist.',
+    suggestions: [
+      'Check the IdentityFile path in your SSH config',
+      'The key may have been deleted or moved',
+      'Generate a new key if needed',
+    ],
+  },
+  public_key_missing: {
+    icon: FileQuestion,
+    title: 'Public Key Missing',
+    description: 'The public key file (.pub) is missing for your private key.',
+    suggestions: [
+      'Regenerate the public key: ssh-keygen -y -f ~/.ssh/your_key > ~/.ssh/your_key.pub',
+      'Or generate a new key pair',
+    ],
+  },
 }
 
 interface ConnectionTestResultProps {
   result: SSHConnectionTestResult
   onRemoveKnownHost: () => void
   onAddKnownHost: () => void
+  onFixPermissions: () => void
+  onAddToAgent: () => void
   isRemovingHost: boolean
   isAddingHost: boolean
+  isFixingPermissions: boolean
+  isAddingToAgent: boolean
 }
 
 // Helper component to show identity file info
@@ -578,8 +736,12 @@ function ConnectionTestResult({
   result,
   onRemoveKnownHost,
   onAddKnownHost,
+  onFixPermissions,
+  onAddToAgent,
   isRemovingHost,
   isAddingHost,
+  isFixingPermissions,
+  isAddingToAgent,
 }: ConnectionTestResultProps) {
   // Success case
   if (result.success) {
@@ -693,6 +855,66 @@ function ConnectionTestResult({
               </Button>
             </div>
           )}
+
+          {/* Fix button for permission issues */}
+          {errorType === 'permission_denied_key_permissions' &&
+            result.errorDetails?.fixParams?.keyPath && (
+              <div className="pt-2">
+                <p className="text-xs text-muted-foreground mb-2">
+                  This will set file permissions to 600 (owner read/write only).
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onFixPermissions}
+                  disabled={isFixingPermissions}
+                  className="gap-2 border-amber-500/50 text-amber-600 hover:bg-amber-500/10"
+                >
+                  {isFixingPermissions ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Fixing...
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="h-4 w-4" />
+                      Fix Permissions
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+
+          {/* Fix button for key not in agent / passphrase issues */}
+          {(errorType === 'permission_denied_key_not_in_agent' ||
+            errorType === 'permission_denied_passphrase') &&
+            config.canFix && (
+              <div className="pt-2">
+                <p className="text-xs text-muted-foreground mb-2">
+                  Add your key to the SSH agent. If it has a passphrase, you may
+                  need to run ssh-add manually in terminal.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onAddToAgent}
+                  disabled={isAddingToAgent}
+                  className="gap-2 border-amber-500/50 text-amber-600 hover:bg-amber-500/10"
+                >
+                  {isAddingToAgent ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Adding...
+                    </>
+                  ) : (
+                    <>
+                      <KeySquare className="h-4 w-4" />
+                      Add to SSH Agent
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
 
           {/* Educational tips for specific error types */}
           {errorType === 'host_key_changed' && (

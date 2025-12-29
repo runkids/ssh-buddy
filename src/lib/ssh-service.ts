@@ -401,15 +401,39 @@ export function getKeyTypeDisplayName(type: SSHKeyInfo['type']): string {
 
 /**
  * SSH error types for friendly error messages
+ * Extended with sub-types for more precise diagnostics
  */
 export type SSHErrorType =
+  // Host key issues
   | 'host_key_changed'
   | 'host_key_unknown'
+  // Authentication issues (with sub-types)
   | 'permission_denied'
+  | 'permission_denied_key_permissions' // chmod 600 issue
+  | 'permission_denied_key_not_in_agent' // key not added to agent
+  | 'permission_denied_wrong_key' // wrong key being used
+  | 'permission_denied_passphrase' // passphrase blocked by BatchMode
+  | 'permission_denied_auth_method' // server doesn't accept publickey
+  // Network issues
   | 'connection_refused'
   | 'timeout'
   | 'dns_failed'
+  // Configuration issues
+  | 'identity_file_not_found' // specified key doesn't exist
+  | 'public_key_missing' // .pub file missing
   | 'unknown'
+
+/**
+ * Extended error details for diagnostic engine
+ */
+export interface SSHErrorDetails {
+  type: SSHErrorType
+  rawMessage: string
+  suggestion: string
+  canAutoFix: boolean
+  fixType?: 'chmod' | 'ssh-add' | 'copy-pubkey' | 'remove-known-host' | 'add-known-host'
+  fixParams?: Record<string, string>
+}
 
 /**
  * SSH Connection test result
@@ -419,6 +443,7 @@ export interface SSHConnectionTestResult {
   output: string
   platform?: 'github' | 'bitbucket' | 'gitlab' | 'unknown'
   errorType?: SSHErrorType
+  errorDetails?: SSHErrorDetails // Extended error information for diagnostics
   hostToRemove?: string
   hostToAdd?: string // For host_key_unknown - the hostname to add to known_hosts
   identityFile?: string // The key file actually used for authentication
@@ -439,7 +464,7 @@ function detectPlatform(
 }
 
 /**
- * Detect SSH error type from output
+ * Detect SSH error type from output (basic detection)
  */
 function detectErrorType(output: string): SSHErrorType | undefined {
   if (output.includes('REMOTE HOST IDENTIFICATION HAS CHANGED'))
@@ -453,6 +478,179 @@ function detectErrorType(output: string): SSHErrorType | undefined {
   )
     return 'timeout'
   if (output.includes('Could not resolve hostname')) return 'dns_failed'
+  return undefined
+}
+
+/**
+ * Enhanced error detection with sub-type classification
+ * Analyzes SSH debug output to determine specific error causes
+ */
+function detectEnhancedErrorType(
+  output: string,
+  debugLog: string
+): SSHErrorDetails | undefined {
+  const fullOutput = `${output}\n${debugLog}`
+
+  // Host key issues
+  if (fullOutput.includes('REMOTE HOST IDENTIFICATION HAS CHANGED')) {
+    return {
+      type: 'host_key_changed',
+      rawMessage: output,
+      suggestion:
+        'The host key has changed. This could indicate a server reinstall or a security issue.',
+      canAutoFix: true,
+      fixType: 'remove-known-host',
+    }
+  }
+
+  if (fullOutput.includes('Host key verification failed')) {
+    return {
+      type: 'host_key_unknown',
+      rawMessage: output,
+      suggestion:
+        'This is a new host. You can add it to known_hosts to trust it.',
+      canAutoFix: true,
+      fixType: 'add-known-host',
+    }
+  }
+
+  // Permission issues - check for specific sub-types
+  if (fullOutput.includes('Permission denied')) {
+    // Check for key permission issues (chmod)
+    if (
+      fullOutput.includes('Permissions') &&
+      fullOutput.includes('too open')
+    ) {
+      const keyPathMatch = fullOutput.match(
+        /Permissions \d+ for '([^']+)' are too open/
+      )
+      return {
+        type: 'permission_denied_key_permissions',
+        rawMessage: output,
+        suggestion:
+          'Your private key file permissions are too open. Private keys should have 600 permissions.',
+        canAutoFix: true,
+        fixType: 'chmod',
+        fixParams: keyPathMatch ? { keyPath: keyPathMatch[1] } : undefined,
+      }
+    }
+
+    // Check for passphrase issues (BatchMode blocks prompts)
+    if (
+      fullOutput.includes('Enter passphrase for key') ||
+      fullOutput.includes('passphrase')
+    ) {
+      return {
+        type: 'permission_denied_passphrase',
+        rawMessage: output,
+        suggestion:
+          'Your key requires a passphrase. Add it to the SSH agent first.',
+        canAutoFix: true,
+        fixType: 'ssh-add',
+      }
+    }
+
+    // Check for no identities in agent
+    if (
+      fullOutput.includes('The agent has no identities') ||
+      fullOutput.includes('Agent has no identities')
+    ) {
+      return {
+        type: 'permission_denied_key_not_in_agent',
+        rawMessage: output,
+        suggestion:
+          'No keys are loaded in your SSH agent. Add your key using ssh-add.',
+        canAutoFix: true,
+        fixType: 'ssh-add',
+      }
+    }
+
+    // Check for auth method not supported
+    if (
+      fullOutput.includes('No more authentication methods to try') ||
+      fullOutput.includes('no mutual signature algorithm')
+    ) {
+      return {
+        type: 'permission_denied_auth_method',
+        rawMessage: output,
+        suggestion:
+          'The server does not accept your authentication method. Check if publickey auth is enabled.',
+        canAutoFix: false,
+      }
+    }
+
+    // Check if wrong key is being used (multiple keys offered but none accepted)
+    const offeredKeys = fullOutput.match(/Offering public key:/g)
+    if (offeredKeys && offeredKeys.length > 1) {
+      return {
+        type: 'permission_denied_wrong_key',
+        rawMessage: output,
+        suggestion:
+          'Multiple keys were tried but none were accepted. Make sure the correct key is configured.',
+        canAutoFix: false,
+      }
+    }
+
+    // Generic permission denied
+    return {
+      type: 'permission_denied',
+      rawMessage: output,
+      suggestion:
+        'Authentication failed. Check that your public key is added to the server.',
+      canAutoFix: false,
+    }
+  }
+
+  // Check for identity file not found
+  if (
+    fullOutput.includes('No such file or directory') &&
+    fullOutput.includes('identity')
+  ) {
+    const keyPathMatch = fullOutput.match(/identity file ([^\s]+).*No such file/)
+    return {
+      type: 'identity_file_not_found',
+      rawMessage: output,
+      suggestion:
+        'The configured identity file does not exist. Check your SSH config.',
+      canAutoFix: false,
+      fixParams: keyPathMatch ? { keyPath: keyPathMatch[1] } : undefined,
+    }
+  }
+
+  // Network issues
+  if (fullOutput.includes('Connection refused')) {
+    return {
+      type: 'connection_refused',
+      rawMessage: output,
+      suggestion:
+        'Connection refused. The SSH server may not be running or a firewall is blocking the connection.',
+      canAutoFix: false,
+    }
+  }
+
+  if (
+    fullOutput.toLowerCase().includes('timed out') ||
+    fullOutput.includes('Connection timeout')
+  ) {
+    return {
+      type: 'timeout',
+      rawMessage: output,
+      suggestion:
+        'Connection timed out. Check your network connection and firewall settings.',
+      canAutoFix: false,
+    }
+  }
+
+  if (fullOutput.includes('Could not resolve hostname')) {
+    return {
+      type: 'dns_failed',
+      rawMessage: output,
+      suggestion:
+        'Hostname could not be resolved. Check the hostname spelling and your DNS settings.',
+      canAutoFix: false,
+    }
+  }
+
   return undefined
 }
 
@@ -597,8 +795,19 @@ export async function testSSHConnection(
     // So we need to check the output content for success indicators
     const success = isAuthSuccess(fullOutput)
 
-    // Detect error type and extract host for removal/addition if needed
+    // Extract the user-facing message (non-debug lines)
+    const userMessage = fullOutput
+      .split('\n')
+      .filter((line) => !line.startsWith('debug1:'))
+      .join('\n')
+      .trim()
+
+    // Detect error type using both basic and enhanced detection
     const errorType = success ? undefined : detectErrorType(fullOutput)
+    const errorDetails = success
+      ? undefined
+      : detectEnhancedErrorType(userMessage, fullOutput)
+
     const hostToRemove =
       errorType === 'host_key_changed'
         ? extractHostFromError(fullOutput)
@@ -611,18 +820,12 @@ export async function testSSHConnection(
     // Extract which identity file was used from debug output
     const identityFile = extractIdentityFile(fullOutput)
 
-    // Extract the user-facing message (non-debug lines)
-    const userMessage = fullOutput
-      .split('\n')
-      .filter((line) => !line.startsWith('debug1:'))
-      .join('\n')
-      .trim()
-
     return {
       success,
       output: userMessage || 'No output received',
       platform,
-      errorType,
+      errorType: errorDetails?.type || errorType,
+      errorDetails,
       hostToRemove,
       hostToAdd,
       identityFile,
@@ -693,4 +896,223 @@ export async function addKnownHost(hostname: string): Promise<void> {
   await writeTextFile(knownHostsPath, newContent)
 
   console.log('[ssh-service] Known host added successfully')
+}
+
+// ============================================================
+// SSH Agent Integration
+// ============================================================
+
+/**
+ * Key info from SSH agent
+ */
+export interface AgentKeyInfo {
+  bitSize: number
+  fingerprint: string
+  comment: string
+  type: string
+}
+
+/**
+ * List all keys currently loaded in the SSH agent
+ */
+export async function listAgentKeys(): Promise<AgentKeyInfo[]> {
+  try {
+    // ssh-add -l outputs:
+    // <bits> <fingerprint> <comment> (<type>)
+    // e.g., "256 SHA256:xxx user@host (ED25519)"
+    const command = Command.create('ssh-add', ['-l'])
+    const output = await command.execute()
+
+    // Exit code 1 with "The agent has no identities" means empty agent
+    if (output.code !== 0) {
+      if (
+        output.stderr?.includes('agent has no identities') ||
+        output.stdout?.includes('agent has no identities')
+      ) {
+        return []
+      }
+      // Other errors (e.g., agent not running)
+      console.warn('[ssh-service] ssh-add -l failed:', output.stderr)
+      return []
+    }
+
+    const keys: AgentKeyInfo[] = []
+    const lines = output.stdout.trim().split('\n')
+
+    for (const line of lines) {
+      if (!line.trim()) continue
+
+      // Parse: "256 SHA256:xxx comment (ED25519)"
+      const match = line.match(/^(\d+)\s+(\S+)\s+(.+?)\s+\(([^)]+)\)$/)
+      if (match) {
+        keys.push({
+          bitSize: parseInt(match[1], 10),
+          fingerprint: match[2],
+          comment: match[3],
+          type: match[4],
+        })
+      }
+    }
+
+    return keys
+  } catch (error) {
+    console.error('[ssh-service] Failed to list agent keys:', error)
+    return []
+  }
+}
+
+/**
+ * Check if a specific key is loaded in the SSH agent
+ * Compares fingerprints to determine if the key is loaded
+ */
+export async function isKeyInAgent(keyPath: string): Promise<boolean> {
+  try {
+    // Get the fingerprint of the key file
+    const keyCommand = Command.create('ssh-keygen', ['-l', '-f', keyPath])
+    const keyOutput = await keyCommand.execute()
+
+    if (keyOutput.code !== 0 || !keyOutput.stdout) {
+      return false
+    }
+
+    // Extract fingerprint from output
+    const keyMatch = keyOutput.stdout.match(/\s+(\S+)\s+/)
+    if (!keyMatch) return false
+    const keyFingerprint = keyMatch[1]
+
+    // Get all keys in agent
+    const agentKeys = await listAgentKeys()
+
+    // Check if any agent key matches
+    return agentKeys.some((agentKey) => agentKey.fingerprint === keyFingerprint)
+  } catch (error) {
+    console.error('[ssh-service] Failed to check if key in agent:', error)
+    return false
+  }
+}
+
+/**
+ * Result of adding a key to the agent
+ */
+export interface AddKeyResult {
+  success: boolean
+  message: string
+  needsPassphrase: boolean
+}
+
+/**
+ * Add a key to the SSH agent
+ * Note: If the key has a passphrase, this will fail in BatchMode
+ * The user should use ssh-add manually or through terminal
+ */
+export async function addKeyToAgent(keyPath: string): Promise<AddKeyResult> {
+  try {
+    // First check if key is already in agent
+    const alreadyLoaded = await isKeyInAgent(keyPath)
+    if (alreadyLoaded) {
+      return {
+        success: true,
+        message: 'Key is already loaded in the agent',
+        needsPassphrase: false,
+      }
+    }
+
+    // Try to add the key
+    // Note: This will fail if the key has a passphrase since we can't prompt
+    const command = Command.create('ssh-add', [keyPath])
+    const output = await command.execute()
+
+    if (output.code === 0) {
+      return {
+        success: true,
+        message: 'Key added to SSH agent successfully',
+        needsPassphrase: false,
+      }
+    }
+
+    // Check if it failed due to passphrase
+    const combinedOutput = `${output.stdout || ''} ${output.stderr || ''}`
+    if (
+      combinedOutput.includes('passphrase') ||
+      combinedOutput.includes('Enter passphrase') ||
+      combinedOutput.includes('Bad passphrase')
+    ) {
+      return {
+        success: false,
+        message:
+          'This key requires a passphrase. Please run ssh-add manually in terminal.',
+        needsPassphrase: true,
+      }
+    }
+
+    return {
+      success: false,
+      message: output.stderr || 'Failed to add key to agent',
+      needsPassphrase: false,
+    }
+  } catch (error) {
+    console.error('[ssh-service] Failed to add key to agent:', error)
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Unknown error',
+      needsPassphrase: false,
+    }
+  }
+}
+
+/**
+ * Remove a key from the SSH agent
+ */
+export async function removeKeyFromAgent(keyPath: string): Promise<{
+  success: boolean
+  message: string
+}> {
+  try {
+    const command = Command.create('ssh-add', ['-d', keyPath])
+    const output = await command.execute()
+
+    if (output.code === 0) {
+      return {
+        success: true,
+        message: 'Key removed from SSH agent',
+      }
+    }
+
+    return {
+      success: false,
+      message: output.stderr || 'Failed to remove key from agent',
+    }
+  } catch (error) {
+    console.error('[ssh-service] Failed to remove key from agent:', error)
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+/**
+ * Check if SSH agent is running and accessible
+ */
+export async function isAgentRunning(): Promise<boolean> {
+  try {
+    const command = Command.create('ssh-add', ['-l'])
+    const output = await command.execute()
+
+    // Exit code 0 = has keys, exit code 1 = no keys but agent running
+    // Exit code 2 = agent not running or not accessible
+    if (output.code === 0 || output.code === 1) {
+      return true
+    }
+
+    // Check stderr for "Could not open" or similar
+    if (output.stderr?.includes('Could not open')) {
+      return false
+    }
+
+    return output.code !== 2
+  } catch (error) {
+    console.error('[ssh-service] Failed to check agent status:', error)
+    return false
+  }
 }
