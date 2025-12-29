@@ -6,13 +6,12 @@
 import {
   readTextFile,
   writeTextFile,
-  readDir,
   exists,
   copyFile,
-  remove,
 } from '@tauri-apps/plugin-fs'
 import { homeDir } from '@tauri-apps/api/path'
 import { Command } from '@tauri-apps/plugin-shell'
+import { invoke } from '@tauri-apps/api/core'
 import {
   parseSSHConfig,
   serializeSSHConfig,
@@ -141,152 +140,46 @@ export async function removeSSHHost(hostName: string): Promise<void> {
 }
 
 /**
- * Get key details using ssh-keygen -l
- * Returns bit size, fingerprint, and comment
- */
-async function getKeyDetails(
-  keyPath: string
-): Promise<{ bitSize?: number; fingerprint?: string; comment?: string }> {
-  try {
-    // ssh-keygen -l -f <keyfile> outputs:
-    // <bits> <fingerprint> <comment> (<type>)
-    // e.g., "4096 SHA256:xxx user@host (RSA)"
-    const command = Command.create('ssh-keygen', ['-l', '-f', keyPath])
-    const output = await command.execute()
-
-    if (output.code !== 0 || !output.stdout) {
-      return {}
-    }
-
-    const line = output.stdout.trim()
-    // Parse: "4096 SHA256:xxx comment (RSA)"
-    const match = line.match(/^(\d+)\s+(\S+)\s+(.+?)\s+\([^)]+\)$/)
-
-    if (match) {
-      return {
-        bitSize: parseInt(match[1], 10),
-        fingerprint: match[2],
-        comment: match[3] !== 'no comment' ? match[3] : undefined,
-      }
-    }
-
-    // Fallback: try to at least get bit size
-    const bitMatch = line.match(/^(\d+)/)
-    if (bitMatch) {
-      return { bitSize: parseInt(bitMatch[1], 10) }
-    }
-
-    return {}
-  } catch (error) {
-    console.warn('[ssh-service] Failed to get key details:', error)
-    return {}
-  }
-}
-
-/**
  * List all SSH keys in the .ssh directory
+ * Uses Rust backend for secure key listing
  */
 export async function listSSHKeys(): Promise<SSHKeyInfo[]> {
-  const sshDir = await getSSHDir()
-  const keys: SSHKeyInfo[] = []
-
-  const dirExists = await exists(sshDir)
-  console.log('[ssh-service] SSH dir exists:', dirExists)
-  if (!dirExists) {
+  try {
+    console.log('[ssh-service] Listing SSH keys via Rust backend')
+    const keys = await invoke<SSHKeyInfo[]>('list_ssh_keys')
+    console.log('[ssh-service] Found', keys.length, 'keys')
     return keys
+  } catch (error) {
+    console.error('[ssh-service] Failed to list keys:', error)
+    // Fallback to empty array on error
+    return []
   }
-
-  const entries = await readDir(sshDir)
-  console.log('[ssh-service] SSH dir entries:', entries.length)
-
-  // Find private keys (files without .pub extension that aren't config files)
-  const excludeFiles = [
-    'config',
-    'known_hosts',
-    'authorized_keys',
-    'config.bak',
-  ]
-
-  for (const entry of entries) {
-    if (!entry.isFile) continue
-    if (!entry.name) continue
-
-    const name = entry.name
-
-    // Skip public keys and known files
-    if (name.endsWith('.pub')) continue
-    if (excludeFiles.includes(name)) continue
-    if (name.startsWith('.')) continue
-
-    // Check if corresponding .pub file exists
-    const publicKeyPath = `${sshDir}/${name}.pub`
-    const hasPublicKey = await exists(publicKeyPath)
-
-    // Determine key type from filename first
-    let keyType = detectKeyTypeFromFilename(name)
-
-    // If filename doesn't indicate type, try reading public key
-    if (!keyType && hasPublicKey) {
-      try {
-        const pubKeyContent = await readTextFile(publicKeyPath)
-        keyType = detectKeyTypeFromPublicKey(pubKeyContent)
-      } catch {
-        keyType = 'unknown'
-      }
-    }
-
-    keys.push({
-      name,
-      type: keyType || 'unknown',
-      hasPublicKey,
-      publicKeyPath,
-      privateKeyPath: `${sshDir}/${name}`,
-    })
-  }
-
-  // Get detailed info (bit size, fingerprint, comment) using ssh-keygen
-  for (const key of keys) {
-    // Prefer public key path for ssh-keygen -l (works better)
-    const keyPathForInfo = key.hasPublicKey
-      ? key.publicKeyPath
-      : key.privateKeyPath
-    const details = await getKeyDetails(keyPathForInfo)
-
-    if (details.bitSize) key.bitSize = details.bitSize
-    if (details.fingerprint) key.fingerprint = details.fingerprint
-    if (details.comment) key.comment = details.comment
-  }
-
-  return keys
 }
 
 /**
  * Read public key content
+ * Uses Rust backend with path traversal protection
  */
 export async function readPublicKey(keyName: string): Promise<string> {
-  const sshDir = await getSSHDir()
-  const pubKeyPath = `${sshDir}/${keyName}.pub`
-  return readTextFile(pubKeyPath)
+  try {
+    return await invoke<string>('read_public_key', { keyName })
+  } catch (error) {
+    console.error('[ssh-service] Failed to read public key:', error)
+    throw error
+  }
 }
 
 /**
  * Delete an SSH key pair
+ * Uses Rust backend with path traversal protection
  */
 export async function deleteSSHKey(keyName: string): Promise<void> {
-  const sshDir = await getSSHDir()
-  const privateKeyPath = `${sshDir}/${keyName}`
-  const publicKeyPath = `${sshDir}/${keyName}.pub`
-
-  // Delete private key
-  const privateExists = await exists(privateKeyPath)
-  if (privateExists) {
-    await remove(privateKeyPath)
-  }
-
-  // Delete public key
-  const publicExists = await exists(publicKeyPath)
-  if (publicExists) {
-    await remove(publicKeyPath)
+  try {
+    await invoke('delete_ssh_key', { keyName })
+    console.log('[ssh-service] Key deleted:', keyName)
+  } catch (error) {
+    console.error('[ssh-service] Failed to delete key:', error)
+    throw error
   }
 }
 
@@ -301,84 +194,28 @@ export interface GenerateSSHKeyOptions {
 }
 
 /**
- * Generate a new SSH key pair using ssh-keygen
+ * Generate a new SSH key pair using Rust backend
+ * Supports Ed25519 and RSA (4096-bit) keys
  */
 export async function generateSSHKey(
   options: GenerateSSHKeyOptions
-): Promise<void> {
-  const sshDir = await getSSHDir()
-  const keyPath = `${sshDir}/${options.name}`
-
-  // Check if key already exists
-  const keyExists = await exists(keyPath)
-  if (keyExists) {
-    throw new Error(`Key "${options.name}" already exists`)
+): Promise<SSHKeyInfo> {
+  try {
+    console.log('[ssh-service] Generating key via Rust backend:', options.name)
+    const keyInfo = await invoke<SSHKeyInfo>('generate_ssh_key', {
+      options: {
+        name: options.name,
+        keyType: options.type,
+        comment: options.comment,
+        passphrase: options.passphrase,
+      },
+    })
+    console.log('[ssh-service] Key generated successfully:', keyInfo.name)
+    return keyInfo
+  } catch (error) {
+    console.error('[ssh-service] Failed to generate key:', error)
+    throw error
   }
-
-  // Build ssh-keygen arguments
-  const args: string[] = [
-    '-t',
-    options.type,
-    '-f',
-    keyPath,
-    '-N',
-    options.passphrase || '',
-  ]
-
-  // Add RSA key size
-  if (options.type === 'rsa') {
-    args.push('-b', '4096')
-  }
-
-  // Add comment if provided
-  if (options.comment) {
-    args.push('-C', options.comment)
-  }
-
-  console.log('[ssh-service] Generating key with args:', args)
-
-  // Execute ssh-keygen
-  const command = Command.create('ssh-keygen', args)
-  const output = await command.execute()
-
-  if (output.code !== 0) {
-    console.error('[ssh-service] ssh-keygen failed:', output.stderr)
-    throw new Error(output.stderr || 'Failed to generate SSH key')
-  }
-
-  console.log('[ssh-service] Key generated successfully')
-}
-
-// Helper functions
-
-function detectKeyTypeFromFilename(
-  filename: string
-): SSHKeyInfo['type'] | null {
-  const lowerName = filename.toLowerCase()
-
-  if (lowerName.includes('ed25519')) return 'ed25519'
-  if (lowerName.includes('ecdsa')) return 'ecdsa'
-  if (lowerName.includes('rsa')) return 'rsa'
-  if (lowerName.includes('dsa')) return 'dsa'
-
-  // Default filenames
-  if (lowerName === 'id_ed25519') return 'ed25519'
-  if (lowerName === 'id_ecdsa') return 'ecdsa'
-  if (lowerName === 'id_rsa') return 'rsa'
-  if (lowerName === 'id_dsa') return 'dsa'
-
-  return null
-}
-
-function detectKeyTypeFromPublicKey(content: string): SSHKeyInfo['type'] {
-  const trimmed = content.trim()
-
-  if (trimmed.startsWith('ssh-ed25519')) return 'ed25519'
-  if (trimmed.startsWith('ssh-rsa')) return 'rsa'
-  if (trimmed.startsWith('ecdsa-sha2-')) return 'ecdsa'
-  if (trimmed.startsWith('ssh-dss')) return 'dsa'
-
-  return 'unknown'
 }
 
 /**

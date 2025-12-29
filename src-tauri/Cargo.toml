@@ -28,3 +28,11 @@ tauri-plugin-shell = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 tauri-plugin-os = "2"
+
+# SSH 操作相關依賴
+ssh-key = { version = "0.6", features = ["ed25519", "rsa", "p256", "p384", "std", "rand_core", "encryption"] }
+rsa = "0.9"
+tokio = { version = "1", features = ["fs", "io-util", "sync"] }
+thiserror = "1.0"
+dirs = "5"
+rand = "0.8"
