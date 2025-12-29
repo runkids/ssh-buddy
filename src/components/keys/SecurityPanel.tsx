@@ -144,15 +144,15 @@ export function SecurityPanel({ keys, onRefresh }: SecurityPanelProps) {
       <div className="flex items-center justify-between sticky top-0 bg-background py-2 -mt-2 z-10">
         <div className="flex items-center gap-3">
           {summary.status === 'healthy' ? (
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10">
+            <div className="flex h-10 w-10 items-center justify-center bg-success/10 border-2 border-success/30">
               <ShieldCheck className="h-5 w-5 text-success" />
             </div>
           ) : summary.status === 'error' ? (
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-destructive/10">
+            <div className="flex h-10 w-10 items-center justify-center bg-destructive/10 border-2 border-destructive/30">
               <ShieldAlert className="h-5 w-5 text-destructive" />
             </div>
           ) : (
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/10">
+            <div className="flex h-10 w-10 items-center justify-center bg-amber-500/10 border-2 border-amber-500/30">
               <Shield className="h-5 w-5 text-amber-600" />
             </div>
           )}
@@ -186,7 +186,7 @@ export function SecurityPanel({ keys, onRefresh }: SecurityPanelProps) {
       </div>
 
       {/* Key Health Section */}
-      <section className="rounded-lg border border-border overflow-hidden">
+      <section className="border-brutal border-primary/20 overflow-hidden shadow-brutal-dark-sm">
         <button
           onClick={() => toggleSection('keys')}
           className="flex w-full items-center justify-between p-4 hover:bg-primary/5 transition-colors"
@@ -209,7 +209,7 @@ export function SecurityPanel({ keys, onRefresh }: SecurityPanelProps) {
         </button>
 
         {expandedSections.has('keys') && (
-          <div className="border-t border-border divide-y divide-border">
+          <div className="border-t-2 border-border divide-y divide-border">
             {scanResult.keyHealth.length === 0 ? (
               <p className="p-4 text-sm text-muted-foreground">
                 No SSH keys found
@@ -246,7 +246,7 @@ export function SecurityPanel({ keys, onRefresh }: SecurityPanelProps) {
       </section>
 
       {/* Known Hosts Section */}
-      <section className="rounded-lg border border-border overflow-hidden">
+      <section className="border-brutal border-primary/20 overflow-hidden shadow-brutal-dark-sm">
         <button
           onClick={() => toggleSection('hosts')}
           className="flex w-full items-center justify-between p-4 hover:bg-primary/5 transition-colors"
@@ -267,10 +267,10 @@ export function SecurityPanel({ keys, onRefresh }: SecurityPanelProps) {
         </button>
 
         {expandedSections.has('hosts') && (
-          <div className="border-t border-border">
+          <div className="border-t-2 border-border">
             {/* Issues */}
             {scanResult.knownHosts.issues.length > 0 && (
-              <div className="p-4 space-y-2 border-b border-border bg-muted/30">
+              <div className="p-4 space-y-2 border-b-2 border-border bg-muted/30">
                 {scanResult.knownHosts.issues.map((issue) => (
                   <IssueItem key={issue.id} issue={issue} />
                 ))}
@@ -364,10 +364,10 @@ function IssueItem({ issue }: IssueItemProps) {
   return (
     <div
       className={cn(
-        'flex items-start gap-2 p-2 rounded-md text-sm',
-        issue.severity === 'error' && 'bg-destructive/10',
-        issue.severity === 'warning' && 'bg-amber-500/10',
-        issue.severity === 'info' && 'bg-muted/50'
+        'flex items-start gap-2 p-2 text-sm border-l-2',
+        issue.severity === 'error' && 'bg-destructive/10 border-destructive/50',
+        issue.severity === 'warning' && 'bg-amber-500/10 border-amber-500/50',
+        issue.severity === 'info' && 'bg-muted/50 border-muted-foreground/30'
       )}
     >
       {issue.severity === 'error' ? (
@@ -407,7 +407,7 @@ function IssueCountBadge({ issues }: IssueCountBadgeProps) {
 
   if (errors === 0 && warnings === 0) {
     return (
-      <span className="px-1.5 py-0.5 rounded-full bg-success/10 text-success text-xs">
+      <span className="px-1.5 py-0.5 bg-success/10 text-success text-xs border border-success/30">
         OK
       </span>
     )
@@ -416,10 +416,10 @@ function IssueCountBadge({ issues }: IssueCountBadgeProps) {
   return (
     <span
       className={cn(
-        'px-1.5 py-0.5 rounded-full text-xs',
+        'px-1.5 py-0.5 text-xs border',
         errors > 0
-          ? 'bg-destructive/10 text-destructive'
-          : 'bg-amber-500/10 text-amber-600'
+          ? 'bg-destructive/10 text-destructive border-destructive/30'
+          : 'bg-amber-500/10 text-amber-600 border-amber-500/30'
       )}
     >
       {errors > 0 ? errors : warnings}

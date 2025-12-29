@@ -160,10 +160,10 @@ export function useUpdater(): UseUpdaterReturn {
       await updateInstance.downloadAndInstall((event) => {
         switch (event.event) {
           case 'Started':
-            setProgress((prev) => ({
-              ...prev,
+            setProgress({
+              downloadedBytes: 0,
               totalBytes: event.data.contentLength ?? null,
-            }))
+            })
             break
           case 'Progress':
             setProgress((prev) => ({
@@ -172,7 +172,11 @@ export function useUpdater(): UseUpdaterReturn {
             }))
             break
           case 'Finished':
-            setState('complete')
+            setProgress((prev) => ({
+              ...prev,
+              downloadedBytes: prev.totalBytes ?? prev.downloadedBytes,
+            }))
+            setState('installing')
             break
         }
       })

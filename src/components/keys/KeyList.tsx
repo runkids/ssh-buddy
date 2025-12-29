@@ -40,7 +40,7 @@ export function KeyList({
         <div className="p-2 space-y-0.5">
           {keys.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
-              <div className="flex h-10 w-10 items-center justify-center rounded bg-primary/10 border border-primary/20 mb-3">
+              <div className="flex h-10 w-10 items-center justify-center bg-primary/10 border-brutal border-primary/30 mb-3 shadow-brutal-sm">
                 <Key className="h-5 w-5 text-primary/50" />
               </div>
               <p className="text-sm text-primary/70 mb-1">// NO_KEYS_FOUND</p>
@@ -56,11 +56,11 @@ export function KeyList({
                   key={key.name}
                   onClick={() => onSelectKey(key.name)}
                   className={cn(
-                    'flex w-full items-center gap-3 rounded px-3 py-2.5 text-sm transition-all duration-200 group',
-                    'border border-transparent',
+                    'flex w-full items-center gap-3 px-3 py-2.5 text-sm transition-all duration-100 group',
+                    'border-2',
                     isSelected
-                      ? 'bg-primary/10 border-primary/40 terminal-glow-sm'
-                      : 'hover:bg-primary/5 hover:border-primary/20'
+                      ? 'bg-primary/10 border-primary/50 shadow-brutal-sm'
+                      : 'border-transparent hover:bg-primary/5 hover:border-primary/30'
                   )}
                 >
                   {/* Index number - terminal style */}
@@ -75,10 +75,10 @@ export function KeyList({
 
                   <div
                     className={cn(
-                      'flex h-8 w-8 shrink-0 items-center justify-center rounded transition-all',
+                      'flex h-8 w-8 shrink-0 items-center justify-center transition-all border-2',
                       isSelected
-                        ? 'bg-primary/20 text-primary border border-primary/30'
-                        : 'bg-muted/50 text-muted-foreground border border-transparent group-hover:border-primary/20'
+                        ? 'bg-primary/20 text-primary border-primary/40'
+                        : 'bg-muted/50 text-muted-foreground border-transparent group-hover:border-primary/30'
                     )}
                   >
                     <Shield className="h-4 w-4" />
@@ -109,7 +109,7 @@ export function KeyList({
                   </div>
                   <span
                     className={cn(
-                      'shrink-0 rounded px-2 py-0.5 text-xs font-medium uppercase',
+                      'shrink-0 px-2 py-0.5 text-xs font-medium uppercase border border-current/20',
                       keyTypeColors[key.type] || keyTypeColors.unknown
                     )}
                   >

@@ -219,7 +219,7 @@ export function KeyGenerator({
       <DialogContent className="sm:max-w-lg max-h-[80vh] flex flex-col">
         <DialogHeader>
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+            <div className="flex h-10 w-10 items-center justify-center bg-primary/10 border-2 border-primary/30">
               <Shield className="h-5 w-5 text-primary" />
             </div>
             <div>
@@ -383,7 +383,7 @@ export function KeyGenerator({
             )}
 
             {/* Info box */}
-            <div className="flex items-start gap-3 rounded-lg bg-muted/50 p-3">
+            <div className="flex items-start gap-3 bg-muted/50 p-3 border-2 border-primary/15">
               <Info className="h-4 w-4 shrink-0 text-primary mt-0.5" />
               <div className="text-xs text-muted-foreground space-y-1">
                 <p>

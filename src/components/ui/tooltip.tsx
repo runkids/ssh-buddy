@@ -18,13 +18,13 @@ const TooltipContent = React.forwardRef<
       sideOffset={sideOffset}
       className={cn(
         // Base styles
-        'z-50 overflow-hidden rounded-md px-3 py-1.5',
-        // Colors - dark theme friendly
-        'bg-popover border border-border text-popover-foreground',
+        'z-50 overflow-hidden px-3 py-1.5',
+        // Colors - dark theme friendly with brutal border
+        'bg-popover border-brutal border-primary/40 text-popover-foreground',
         // Typography
         'text-xs font-medium',
-        // Shadow for depth
-        'shadow-md shadow-black/20',
+        // Shadow for depth - brutal style
+        'shadow-brutal-dark-sm',
         // Animation
         'animate-in fade-in-0 zoom-in-95',
         'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',

@@ -92,30 +92,30 @@ interface ToastItemProps {
 const toastConfig = {
   success: {
     icon: CheckCircle2,
-    borderColor: 'border-primary/50',
+    borderColor: 'border-primary/70',
     iconColor: 'text-primary',
-    glowColor: 'terminal-glow-sm',
+    shadowClass: 'shadow-brutal-sm',
     prefix: '[OK]',
   },
   error: {
     icon: AlertCircle,
-    borderColor: 'border-destructive/50',
+    borderColor: 'border-destructive/70',
     iconColor: 'text-destructive',
-    glowColor: '',
+    shadowClass: 'shadow-brutal-destructive-sm',
     prefix: '[ERR]',
   },
   warning: {
     icon: AlertTriangle,
-    borderColor: 'border-warning/50',
+    borderColor: 'border-warning/70',
     iconColor: 'text-warning',
-    glowColor: '',
+    shadowClass: 'shadow-brutal-warning',
     prefix: '[WARN]',
   },
   info: {
     icon: Info,
-    borderColor: 'border-primary/30',
+    borderColor: 'border-primary/50',
     iconColor: 'text-primary/80',
-    glowColor: 'terminal-glow-sm',
+    shadowClass: 'shadow-brutal-dark-sm',
     prefix: '[INFO]',
   },
 }
@@ -127,10 +127,10 @@ function ToastItem({ toast, onRemove }: ToastItemProps) {
   return (
     <div
       className={cn(
-        'flex items-start gap-3 rounded border bg-card p-4 shadow-lg',
+        'flex items-start gap-3 border-brutal bg-card p-4',
         'animate-slide-in-right',
         config.borderColor,
-        config.glowColor
+        config.shadowClass
       )}
     >
       <Icon className={cn('h-5 w-5 shrink-0 mt-0.5', config.iconColor)} />
@@ -149,7 +149,7 @@ function ToastItem({ toast, onRemove }: ToastItemProps) {
       </div>
       <button
         onClick={() => onRemove(toast.id)}
-        className="shrink-0 rounded p-1 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+        className="shrink-0 p-1 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors border-2 border-transparent hover:border-primary/30"
       >
         <X className="h-4 w-4" />
       </button>

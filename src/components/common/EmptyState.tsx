@@ -37,16 +37,11 @@ export function EmptyState({
         {'>'} _ {'<'}
       </div>
 
-      {/* Icon container with terminal style */}
+      {/* Icon container with brutal style */}
       <div className="relative mb-6">
-        <div className="flex h-16 w-16 items-center justify-center rounded border border-primary/30 bg-primary/5">
+        <div className="flex h-16 w-16 items-center justify-center border-brutal border-primary/50 bg-primary/5 shadow-brutal-sm">
           <Icon className="h-8 w-8 text-primary/60" />
         </div>
-        {/* Corner decorations */}
-        <div className="absolute -top-1 -left-1 w-2 h-2 border-l border-t border-primary/40" />
-        <div className="absolute -top-1 -right-1 w-2 h-2 border-r border-t border-primary/40" />
-        <div className="absolute -bottom-1 -left-1 w-2 h-2 border-l border-b border-primary/40" />
-        <div className="absolute -bottom-1 -right-1 w-2 h-2 border-r border-b border-primary/40" />
       </div>
 
       {/* Title with terminal comment style */}
@@ -63,11 +58,7 @@ export function EmptyState({
       {(action || secondaryAction) && (
         <div className="flex gap-3">
           {action && (
-            <Button
-              onClick={action.onClick}
-              size="sm"
-              className="terminal-glow-sm"
-            >
+            <Button onClick={action.onClick} size="sm">
               [{action.label}]
             </Button>
           )}
@@ -76,7 +67,6 @@ export function EmptyState({
               onClick={secondaryAction.onClick}
               size="sm"
               variant="outline"
-              className="border-primary/30 text-primary/80 hover:bg-primary/10 hover:text-primary"
             >
               [{secondaryAction.label}]
             </Button>

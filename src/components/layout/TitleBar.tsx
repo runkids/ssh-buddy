@@ -37,7 +37,7 @@ export function TitleBar({ onHelpClick }: TitleBarProps) {
   return (
     <header
       onMouseDown={handleMouseDown}
-      className="flex items-center border-b border-primary/20 bg-card/80 h-12 flex-shrink-0 backdrop-blur-sm"
+      className="flex items-center border-b-2 border-primary/30 bg-card/80 h-12 flex-shrink-0 backdrop-blur-sm"
     >
       {/* Left: Space for macOS traffic lights */}
       <div className="w-20 h-full" />
@@ -60,7 +60,7 @@ export function TitleBar({ onHelpClick }: TitleBarProps) {
 
           {/* Version badge */}
           {version && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded border border-primary/30 text-primary/60 font-medium">
+            <span className="text-[10px] px-1.5 py-0.5 border-2 border-primary/30 text-primary/60 font-medium">
               v{version}
             </span>
           )}

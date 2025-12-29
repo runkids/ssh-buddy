@@ -91,7 +91,7 @@ export function ContextualTip({
   return (
     <div
       className={cn(
-        'rounded-lg border p-4',
+        'border-brutal p-4',
         config.bgColor,
         config.borderColor,
         className
@@ -147,7 +147,7 @@ export function ContextualTip({
                 )}
               </button>
               {showDetails && (
-                <div className="mt-2 text-xs text-muted-foreground bg-background/50 rounded-md p-3">
+                <div className="mt-2 text-xs text-muted-foreground bg-background/50 p-3 border border-border">
                   {details}
                 </div>
               )}

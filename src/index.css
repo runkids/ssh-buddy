@@ -44,13 +44,21 @@
     --input: 220 20% 16%;
     --ring: 120 100% 45%;
 
-    /* Radius */
-    --radius: 0.5rem;
+    /* Radius - Neo-Brutalism: minimal to none */
+    --radius: 0.125rem;
 
-    /* Terminal Glow Effects */
+    /* Terminal Glow Effects (legacy - kept for text-glow) */
     --terminal-glow: 120 100% 45%;
     --glow-intensity: 0.25;
     --glow-spread: 20px;
+
+    /* Neo-Brutalism Variables */
+    --brutal-border-width: 2px;
+    --brutal-border-width-lg: 3px;
+    --brutal-shadow-offset: 4px;
+    --brutal-shadow-offset-sm: 2px;
+    --brutal-shadow-offset-lg: 6px;
+    --brutal-transition: 100ms ease-out;
   }
 
   * {
@@ -658,4 +666,197 @@
 
 @utility border-primary-muted {
   border-color: hsl(var(--primary-muted));
+}
+
+/* ============================================
+   NEO-BRUTALISM - Hard Shadow Design System
+   ============================================ */
+
+/* Hard Shadow Utilities */
+@utility shadow-brutal-sm {
+  box-shadow: var(--brutal-shadow-offset-sm) var(--brutal-shadow-offset-sm) 0 hsl(var(--primary));
+}
+
+@utility shadow-brutal {
+  box-shadow: var(--brutal-shadow-offset) var(--brutal-shadow-offset) 0 hsl(var(--primary));
+}
+
+@utility shadow-brutal-lg {
+  box-shadow: var(--brutal-shadow-offset-lg) var(--brutal-shadow-offset-lg) 0 hsl(var(--primary));
+}
+
+/* Dark shadow variants (for secondary elements) */
+@utility shadow-brutal-dark {
+  box-shadow: var(--brutal-shadow-offset) var(--brutal-shadow-offset) 0 hsl(0 0% 0%);
+}
+
+@utility shadow-brutal-dark-sm {
+  box-shadow: var(--brutal-shadow-offset-sm) var(--brutal-shadow-offset-sm) 0 hsl(0 0% 0%);
+}
+
+/* Destructive shadow */
+@utility shadow-brutal-destructive {
+  box-shadow: var(--brutal-shadow-offset) var(--brutal-shadow-offset) 0 hsl(var(--destructive));
+}
+
+@utility shadow-brutal-destructive-sm {
+  box-shadow: var(--brutal-shadow-offset-sm) var(--brutal-shadow-offset-sm) 0 hsl(var(--destructive));
+}
+
+/* Warning shadow */
+@utility shadow-brutal-warning {
+  box-shadow: var(--brutal-shadow-offset) var(--brutal-shadow-offset) 0 hsl(var(--warning));
+}
+
+/* ============================================
+   TERMINAL CRAFT FUSION - Hard Shadow + Glow
+   Combines Neo-Brutalism with terminal aesthetic
+   ============================================ */
+
+/* Primary glow + shadow fusion */
+@utility shadow-fusion {
+  box-shadow:
+    var(--brutal-shadow-offset-sm) var(--brutal-shadow-offset-sm) 0 hsl(var(--primary)),
+    0 0 12px hsl(var(--primary) / 0.15),
+    inset 0 1px 0 hsl(var(--primary) / 0.1);
+}
+
+@utility shadow-fusion-hover {
+  box-shadow:
+    var(--brutal-shadow-offset) var(--brutal-shadow-offset) 0 hsl(var(--primary)),
+    0 0 20px hsl(var(--primary) / 0.25),
+    inset 0 1px 0 hsl(var(--primary) / 0.15);
+}
+
+@utility shadow-fusion-sm {
+  box-shadow:
+    1px 1px 0 hsl(var(--primary)),
+    0 0 8px hsl(var(--primary) / 0.1),
+    inset 0 1px 0 hsl(var(--primary) / 0.08);
+}
+
+/* Destructive fusion */
+@utility shadow-fusion-destructive {
+  box-shadow:
+    var(--brutal-shadow-offset-sm) var(--brutal-shadow-offset-sm) 0 hsl(var(--destructive)),
+    0 0 12px hsl(var(--destructive) / 0.15),
+    inset 0 1px 0 hsl(var(--destructive) / 0.1);
+}
+
+@utility shadow-fusion-destructive-hover {
+  box-shadow:
+    var(--brutal-shadow-offset) var(--brutal-shadow-offset) 0 hsl(var(--destructive)),
+    0 0 20px hsl(var(--destructive) / 0.25),
+    inset 0 1px 0 hsl(var(--destructive) / 0.15);
+}
+
+/* Secondary/Dark fusion */
+@utility shadow-fusion-dark {
+  box-shadow:
+    var(--brutal-shadow-offset-sm) var(--brutal-shadow-offset-sm) 0 hsl(0 0% 0%),
+    0 0 10px hsl(var(--primary) / 0.08),
+    inset 0 1px 0 hsl(var(--foreground) / 0.05);
+}
+
+@utility shadow-fusion-dark-hover {
+  box-shadow:
+    var(--brutal-shadow-offset) var(--brutal-shadow-offset) 0 hsl(0 0% 0%),
+    0 0 16px hsl(var(--primary) / 0.12),
+    inset 0 1px 0 hsl(var(--foreground) / 0.08);
+}
+
+/* Active state pulse animation */
+@keyframes fusion-pulse {
+  0% {
+    box-shadow:
+      0 0 0 transparent,
+      0 0 0 hsl(var(--primary) / 0);
+  }
+  50% {
+    box-shadow:
+      0 0 0 transparent,
+      0 0 15px hsl(var(--primary) / 0.4);
+  }
+  100% {
+    box-shadow:
+      0 0 0 transparent,
+      0 0 0 hsl(var(--primary) / 0);
+  }
+}
+
+@keyframes fusion-pulse-destructive {
+  0% {
+    box-shadow:
+      0 0 0 transparent,
+      0 0 0 hsl(var(--destructive) / 0);
+  }
+  50% {
+    box-shadow:
+      0 0 0 transparent,
+      0 0 15px hsl(var(--destructive) / 0.4);
+  }
+  100% {
+    box-shadow:
+      0 0 0 transparent,
+      0 0 0 hsl(var(--destructive) / 0);
+  }
+}
+
+/* Thick Border Utilities */
+@utility border-brutal {
+  border-width: var(--brutal-border-width);
+  border-style: solid;
+}
+
+@utility border-brutal-lg {
+  border-width: var(--brutal-border-width-lg);
+  border-style: solid;
+}
+
+/* Neo-Brutalism Hover Effect */
+@utility brutal-hover {
+  transition: transform var(--brutal-transition), box-shadow var(--brutal-transition);
+
+  &:hover {
+    transform: translate(-2px, -2px);
+  }
+
+  &:active {
+    transform: translate(2px, 2px);
+    box-shadow: 0 0 0 transparent;
+  }
+}
+
+/* Neo-Brutalism Card Style */
+@utility brutal-card {
+  background: hsl(var(--card));
+  border: var(--brutal-border-width) solid hsl(var(--primary) / 0.5);
+  box-shadow: var(--brutal-shadow-offset) var(--brutal-shadow-offset) 0 hsl(var(--primary) / 0.3);
+}
+
+/* Neo-Brutalism Button Press Animation */
+@keyframes brutal-press {
+  0% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(2px, 2px);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
+@utility animate-brutal-press {
+  animation: brutal-press 150ms ease-out;
+}
+
+/* Neo-Brutalism Focus Ring */
+@utility focus-brutal {
+  outline: none;
+
+  &:focus-visible {
+    outline: var(--brutal-border-width) solid hsl(var(--primary));
+    outline-offset: 2px;
+  }
 }

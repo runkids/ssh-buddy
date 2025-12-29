@@ -395,23 +395,23 @@ function AppContent() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-background rounded-lg overflow-hidden select-none">
+    <div className="flex flex-col h-screen bg-background overflow-hidden select-none">
       {/* Custom Title Bar */}
       <TitleBar onHelpClick={() => setOnboardingOpen(true)} />
 
       {/* Main App Content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Icon Rail - Always visible */}
-        <div className="flex flex-col w-16 border-r border-border bg-card/50">
+        <div className="flex flex-col w-16 border-r-2 border-primary/20 bg-card/50">
           {/* Nav Icons */}
           <div className="flex-1 flex flex-col items-center py-4 gap-2">
             <button
               onClick={() => setActiveTab('hosts')}
               className={cn(
-                'flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200',
+                'flex h-10 w-10 items-center justify-center transition-all duration-100 border-2',
                 activeTab === 'hosts'
-                  ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/25'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  ? 'bg-primary text-primary-foreground border-primary shadow-brutal-sm'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted border-transparent hover:border-primary/30'
               )}
               title="Hosts"
             >
@@ -420,10 +420,10 @@ function AppContent() {
             <button
               onClick={() => setActiveTab('keys')}
               className={cn(
-                'flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200',
+                'flex h-10 w-10 items-center justify-center transition-all duration-100 border-2',
                 activeTab === 'keys'
-                  ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/25'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  ? 'bg-primary text-primary-foreground border-primary shadow-brutal-sm'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted border-transparent hover:border-primary/30'
               )}
               title="Keys"
             >
@@ -432,10 +432,10 @@ function AppContent() {
             <button
               onClick={() => setActiveTab('security')}
               className={cn(
-                'flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200',
+                'flex h-10 w-10 items-center justify-center transition-all duration-100 border-2',
                 activeTab === 'security'
-                  ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/25'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  ? 'bg-primary text-primary-foreground border-primary shadow-brutal-sm'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted border-transparent hover:border-primary/30'
               )}
               title="Security"
             >
@@ -450,7 +450,7 @@ function AppContent() {
               <DropdownMenuTrigger asChild>
                 <button
                   className={cn(
-                    'relative group flex flex-col items-center gap-1.5 p-1.5 rounded-xl transition-all duration-300',
+                    'relative group flex flex-col items-center gap-1.5 p-1.5 transition-all duration-300',
                     'hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50',
                     showSettings && 'bg-muted/50',
                     updateState === 'available' && 'animate-pulse-subtle'
@@ -466,15 +466,15 @@ function AppContent() {
                   {/* Logo Container */}
                   <div
                     className={cn(
-                      'relative w-10 h-10 rounded-lg overflow-hidden transition-all duration-300',
-                      'ring-2 ring-offset-1 ring-offset-background',
+                      'relative w-10 h-10 overflow-hidden transition-all duration-300',
+                      'border-2 border-primary/20',
                       updateState === 'available'
-                        ? 'ring-yellow-500/60 shadow-[0_0_12px_rgba(234,179,8,0.3)]'
+                        ? 'border-yellow-500/60 shadow-brutal-warning'
                         : updateState === 'complete'
-                          ? 'ring-green-500/60 shadow-[0_0_12px_rgba(34,197,94,0.3)]'
+                          ? 'border-green-500/60 shadow-brutal-sm'
                           : showSettings
-                            ? 'ring-primary/40'
-                            : 'ring-primary/20 group-hover:ring-primary/40'
+                            ? 'border-primary/40'
+                            : 'border-primary/20 group-hover:border-primary/40'
                     )}
                   >
                     <img
@@ -597,11 +597,11 @@ function AppContent() {
         {/* Expandable Panel - Hidden for Security tab */}
         {activeTab !== 'security' && (
           <div
-            className="flex flex-col border-r border-border bg-card"
+            className="flex flex-col border-r-2 border-primary/20 bg-card"
             style={{ width: `${sidebarWidth}px` }}
           >
             {/* Panel Header */}
-            <div className="flex h-12 items-center justify-between px-4 border-b border-border">
+            <div className="flex h-12 items-center justify-between px-4 border-b-2 border-primary/20">
               <div className="flex items-center gap-2">
                 {activeTab === 'hosts' ? (
                   <Server className="h-4 w-4 text-muted-foreground" />

@@ -281,7 +281,7 @@ export function HostDetail({
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 relative">
+          <div className="flex h-14 w-14 items-center justify-center bg-primary/10 border-brutal border-primary/40 shadow-brutal-sm relative">
             <Server className="h-7 w-7 text-primary" />
             {isFavorite && (
               <Star className="absolute -top-1 -right-1 h-5 w-5 fill-amber-500 text-amber-500" />
@@ -367,9 +367,9 @@ export function HostDetail({
 
       {/* Tags Section */}
       {(onAddTag || (metadata && metadata.tags.length > 0)) && (
-        <div className="rounded-xl border border-border bg-card p-4">
+        <div className="border-brutal border-primary/30 bg-card p-4 shadow-brutal-dark-sm">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center bg-muted border-2 border-primary/20">
               <Star className="h-5 w-5 text-muted-foreground" />
             </div>
             <div className="flex-1 min-w-0">
@@ -389,7 +389,7 @@ export function HostDetail({
                   {metadata?.tags.map((tag) => (
                     <span
                       key={tag}
-                      className="inline-flex items-center px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs"
+                      className="inline-flex items-center px-2 py-0.5 bg-primary/10 text-primary text-xs border border-primary/30"
                     >
                       {tag}
                     </span>
@@ -414,10 +414,10 @@ export function HostDetail({
       )}
 
       {/* Quick Connect Command */}
-      <div className="rounded-xl border border-border bg-card overflow-hidden">
+      <div className="border-brutal border-primary/30 bg-card overflow-hidden shadow-brutal-dark-sm">
         <div className="flex items-center justify-between gap-4 p-4">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center bg-muted border-2 border-primary/20">
               <Terminal className="h-5 w-5 text-muted-foreground" />
             </div>
             <div className="min-w-0">
@@ -537,7 +537,7 @@ export function HostDetail({
 
         {/* Empty state */}
         {options.length === 0 && (
-          <div className="rounded-xl border border-dashed border-border p-8 text-center">
+          <div className="border-brutal border-dashed border-primary/20 p-8 text-center">
             <p className="text-muted-foreground">
               No additional options configured
             </p>
@@ -748,14 +748,14 @@ function ConnectionTestResult({
   // Success case
   if (result.success) {
     return (
-      <div className="border-t p-4 bg-success/10 border-success/30">
+      <div className="border-t-2 p-4 bg-success/10 border-success/50">
         <div className="flex items-start gap-3">
           <CheckCircle2 className="h-5 w-5 text-success shrink-0 mt-0.5" />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium mb-2 text-success">
               Connection Successful
             </p>
-            <pre className="text-xs font-mono bg-background/50 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-words">
+            <pre className="text-xs font-mono bg-background/50 border-2 border-success/20 p-3 overflow-x-auto whitespace-pre-wrap break-words">
               {result.output}
             </pre>
             <IdentityFileInfo identityFile={result.identityFile} />
@@ -764,7 +764,7 @@ function ConnectionTestResult({
                 <summary className="text-muted-foreground cursor-pointer hover:text-foreground">
                   Show debug log
                 </summary>
-                <pre className="font-mono bg-background/50 rounded-lg p-3 mt-2 overflow-x-auto whitespace-pre-wrap break-words max-h-48 overflow-y-auto">
+                <pre className="font-mono bg-background/50 border-2 border-border p-3 mt-2 overflow-x-auto whitespace-pre-wrap break-words max-h-48 overflow-y-auto">
                   {result.debugLog}
                 </pre>
               </details>
@@ -781,7 +781,7 @@ function ConnectionTestResult({
   const Icon = config.icon
 
   return (
-    <div className="border-t p-4 bg-amber-500/10 border-amber-500/30">
+    <div className="border-t-2 p-4 bg-amber-500/10 border-amber-500/50">
       <div className="flex items-start gap-3">
         <Icon className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
         <div className="min-w-0 flex-1 space-y-3">
@@ -958,7 +958,7 @@ function ConnectionTestResult({
             <summary className="text-muted-foreground cursor-pointer hover:text-foreground">
               Show debug log
             </summary>
-            <pre className="font-mono bg-background/50 rounded-lg p-3 mt-2 overflow-x-auto whitespace-pre-wrap break-words max-h-48 overflow-y-auto">
+            <pre className="font-mono bg-background/50 border-2 border-border p-3 mt-2 overflow-x-auto whitespace-pre-wrap break-words max-h-48 overflow-y-auto">
               {result.debugLog || result.output}
             </pre>
           </details>
@@ -985,16 +985,16 @@ function ConfigSection({ title, options, formatValue }: ConfigSectionProps) {
       <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
         {title}
       </h3>
-      <div className="rounded-xl border border-border overflow-hidden">
+      <div className="border-brutal border-primary/20 overflow-hidden shadow-brutal-dark-sm">
         {options.map(({ key, value, label, icon: Icon }, index) => (
           <div
             key={key}
             className={cn(
               'flex items-center gap-3 px-4 py-3',
-              index !== options.length - 1 && 'border-b border-border'
+              index !== options.length - 1 && 'border-b-2 border-border'
             )}
           >
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center bg-muted border-2 border-primary/15">
               {Icon ? (
                 <Icon className="h-4 w-4 text-muted-foreground" />
               ) : (

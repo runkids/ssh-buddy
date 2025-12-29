@@ -103,7 +103,7 @@ export function KeyDetail({
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10">
+          <div className="flex h-14 w-14 items-center justify-center bg-primary/10 border-brutal border-primary/40 shadow-brutal-sm">
             <Shield className="h-7 w-7 text-primary" />
           </div>
           <div>
@@ -113,7 +113,7 @@ export function KeyDetail({
               </h2>
               <span
                 className={cn(
-                  'rounded-md border px-2.5 py-1 text-xs font-semibold uppercase',
+                  'border-2 px-2.5 py-1 text-xs font-semibold uppercase',
                   keyTypeColors[keyInfo.type] || keyTypeColors.unknown
                 )}
               >
@@ -148,13 +148,13 @@ export function KeyDetail({
         <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
           File Location
         </h3>
-        <div className="rounded-xl border border-border overflow-hidden">
+        <div className="border-brutal border-primary/20 overflow-hidden shadow-brutal-dark-sm">
           {/* Private Key Path */}
           <button
             onClick={() => copyPath(keyInfo.privateKeyPath, 'private')}
-            className="flex items-center gap-3 px-4 py-3 border-b border-border w-full text-left hover:bg-primary/5 transition-colors group"
+            className="flex items-center gap-3 px-4 py-3 border-b-2 border-border w-full text-left hover:bg-primary/5 transition-colors group"
           >
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted group-hover:bg-primary/10 transition-colors">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center bg-muted border-2 border-primary/15 group-hover:bg-primary/10 transition-colors">
               <FileKey className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
             </div>
             <div className="flex-1 min-w-0">
@@ -184,7 +184,7 @@ export function KeyDetail({
           >
             <div
               className={cn(
-                'flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted transition-colors',
+                'flex h-8 w-8 shrink-0 items-center justify-center bg-muted border-2 border-primary/15 transition-colors',
                 keyInfo.hasPublicKey && 'group-hover:bg-primary/10'
               )}
             >
@@ -254,7 +254,7 @@ export function KeyDetail({
             </Button>
           </div>
 
-          <div className="rounded-xl border border-border bg-card overflow-hidden">
+          <div className="border-brutal border-primary/20 bg-card overflow-hidden shadow-brutal-dark-sm">
             {loading ? (
               <div className="p-4 space-y-2">
                 <Skeleton className="h-4 w-full" />
@@ -278,7 +278,7 @@ export function KeyDetail({
           </div>
 
           {/* Usage hint */}
-          <div className="flex items-start gap-3 rounded-lg bg-muted/50 p-4">
+          <div className="flex items-start gap-3 bg-muted/50 p-4 border-brutal border-primary/15">
             <Info className="h-5 w-5 shrink-0 text-primary mt-0.5" />
             <div className="text-sm text-muted-foreground">
               <p className="font-medium text-foreground mb-1">
@@ -287,7 +287,7 @@ export function KeyDetail({
               <ul className="space-y-1 list-disc list-inside">
                 <li>
                   Add the public key to the server's{' '}
-                  <code className="text-xs bg-muted px-1 py-0.5 rounded">
+                  <code className="text-xs bg-muted px-1 py-0.5 border border-border">
                     ~/.ssh/authorized_keys
                   </code>{' '}
                   file
@@ -301,7 +301,7 @@ export function KeyDetail({
 
       {/* Warning for missing public key */}
       {!keyInfo.hasPublicKey && (
-        <div className="flex items-start gap-3 rounded-xl border border-warning/30 bg-warning/5 p-4">
+        <div className="flex items-start gap-3 border-brutal border-warning/50 bg-warning/5 p-4 shadow-brutal-warning">
           <AlertCircle className="h-5 w-5 shrink-0 text-warning mt-0.5" />
           <div className="text-sm">
             <p className="font-medium text-warning mb-1">
