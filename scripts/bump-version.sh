@@ -96,13 +96,12 @@ update_cargo_toml() {
 
 update_cargo_lock() {
     local new_version=$1
-    local current_version=$2
     # Update version for ssh-buddy package in Cargo.lock
     # Pattern: name = "ssh-buddy" followed by version = "x.x.x"
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        sed -i '' '/^name = "ssh-buddy"$/,/^$/{s/^version = "'"$current_version"'"/version = "'"$new_version"'"/;}' "$CARGO_LOCK"
+        sed -i '' '/^name = "ssh-buddy"$/,/^$/{s/^version = "[^"]*"/version = "'"$new_version"'"/;}' "$CARGO_LOCK"
     else
-        sed -i '/^name = "ssh-buddy"$/,/^$/{s/^version = "'"$current_version"'"/version = "'"$new_version"'"/;}' "$CARGO_LOCK"
+        sed -i '/^name = "ssh-buddy"$/,/^$/{s/^version = "[^"]*"/version = "'"$new_version"'"/;}' "$CARGO_LOCK"
     fi
 }
 
@@ -129,7 +128,7 @@ verify_update() {
             ;;
         *Cargo.lock)
             # Find ssh-buddy package and extract its version
-            actual=$(awk '/^name = "ssh-buddy"$/{getline; if(/^version = "([^"]*)"/) {gsub(/version = "|"/, ""); print; exit}}' "$file")
+            actual=$(awk '/^name = "ssh-buddy"$/{getline; gsub(/^version = "|"$/, ""); print; exit}' "$file")
             ;;
         *tauri.conf.json)
             actual=$(grep '"version":' "$file" | head -1 | sed 's/.*"version": *"\([^"]*\)".*/\1/')
@@ -256,7 +255,7 @@ do_update() {
 
     update_package_json "$new_version"
     update_cargo_toml "$new_version"
-    update_cargo_lock "$new_version" "$current_version"
+    update_cargo_lock "$new_version"
     update_tauri_conf "$new_version"
 
     # Verify

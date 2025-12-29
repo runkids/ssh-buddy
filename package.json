@@ -1,7 +1,7 @@
 {
   "name": "ssh-buddy",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -16,7 +16,9 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "version:bump": "./scripts/bump-version.sh",
+    "version:check": "./scripts/bump-version.sh --check"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",

@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { PreflightPanel } from '../../components/hosts/PreflightPanel'
 import type { SSHHostConfig } from '../../lib/ssh-config'
 import type { PreflightResult, PreflightCheck } from '../../lib/diagnostic-engine'

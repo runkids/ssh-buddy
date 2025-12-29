@@ -426,7 +426,7 @@ describe('diagnostic-engine', () => {
         params: { keyPath: '/Users/test/.ssh/id_encrypted' },
       }
 
-      const result = await executeFixAction(action, 'secret123')
+      await executeFixAction(action, 'secret123')
 
       expect(addKeyToAgent).toHaveBeenCalledWith(
         '/Users/test/.ssh/id_encrypted',
