@@ -48,7 +48,8 @@ export function PreflightPanel({
   // Passphrase dialog state
   const [passphraseDialogOpen, setPassphraseDialogOpen] = useState(false)
   const [passphrase, setPassphrase] = useState('')
-  const [pendingFixAction, setPendingFixAction] = useState<DiagnosticFixAction | null>(null)
+  const [pendingFixAction, setPendingFixAction] =
+    useState<DiagnosticFixAction | null>(null)
   const [passphraseError, setPassphraseError] = useState<string | null>(null)
   const [isSubmittingPassphrase, setIsSubmittingPassphrase] = useState(false)
 
@@ -244,11 +245,7 @@ export function PreflightPanel({
                   Fix All
                 </Button>
               )}
-              <Button
-                size="sm"
-                onClick={onContinue}
-                disabled={!!fixingId}
-              >
+              <Button size="sm" onClick={onContinue} disabled={!!fixingId}>
                 {result.hasErrors ? (
                   <>
                     <SkipForward className="h-4 w-4 mr-1" />
@@ -272,7 +269,10 @@ export function PreflightPanel({
       )}
 
       {/* Passphrase Dialog */}
-      <Dialog open={passphraseDialogOpen} onOpenChange={setPassphraseDialogOpen}>
+      <Dialog
+        open={passphraseDialogOpen}
+        onOpenChange={setPassphraseDialogOpen}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -280,7 +280,8 @@ export function PreflightPanel({
               Enter Passphrase
             </DialogTitle>
             <DialogDescription>
-              This SSH key is protected with a passphrase. Enter it to add the key to the SSH agent.
+              This SSH key is protected with a passphrase. Enter it to add the
+              key to the SSH agent.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -344,11 +345,15 @@ function CheckRow({ check, isFixing, onFix }: CheckRowProps) {
   const getStatusIcon = () => {
     switch (check.status) {
       case 'passed':
-        return <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+        return (
+          <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+        )
       case 'failed':
         return <XCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
       case 'warning':
-        return <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+        return (
+          <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+        )
       case 'checking':
         return <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
       case 'skipped':
@@ -378,24 +383,25 @@ function CheckRow({ check, isFixing, onFix }: CheckRowProps) {
         </div>
       </div>
 
-      {check.fixAction && (check.status === 'failed' || check.status === 'warning') && (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onFix}
-          disabled={isFixing}
-          className="ml-2"
-        >
-          {isFixing ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <>
-              <Wrench className="h-4 w-4 mr-1" />
-              Fix
-            </>
-          )}
-        </Button>
-      )}
+      {check.fixAction &&
+        (check.status === 'failed' || check.status === 'warning') && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onFix}
+            disabled={isFixing}
+            className="ml-2"
+          >
+            {isFixing ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <>
+                <Wrench className="h-4 w-4 mr-1" />
+                Fix
+              </>
+            )}
+          </Button>
+        )}
     </div>
   )
 }

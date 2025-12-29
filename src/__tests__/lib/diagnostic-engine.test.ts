@@ -7,7 +7,10 @@ import {
   type PreflightResult,
   type DiagnosticFixAction,
 } from '../../lib/diagnostic-engine'
-import type { SSHConnectionTestResult, SSHErrorType } from '../../lib/ssh-service'
+import type {
+  SSHConnectionTestResult,
+  SSHErrorType,
+} from '../../lib/ssh-service'
 
 // Mock dependencies
 vi.mock('@tauri-apps/plugin-fs', () => ({
@@ -277,10 +280,16 @@ describe('diagnostic-engine', () => {
         timestamp: Date.now(),
       }
 
-      const steps = generateTroubleshootingSteps(undefined, undefined, preflightResult)
+      const steps = generateTroubleshootingSteps(
+        undefined,
+        undefined,
+        preflightResult
+      )
 
       expect(steps.length).toBeGreaterThan(0)
-      expect(steps.some((s) => s.id.includes('preflight-key_in_agent'))).toBe(true)
+      expect(steps.some((s) => s.id.includes('preflight-key_in_agent'))).toBe(
+        true
+      )
     })
 
     it('should always include retest step', () => {
@@ -381,7 +390,9 @@ describe('diagnostic-engine', () => {
 
       const result = await executeFixAction(action)
 
-      expect(fixKeyPermissions).toHaveBeenCalledWith('/Users/test/.ssh/id_ed25519')
+      expect(fixKeyPermissions).toHaveBeenCalledWith(
+        '/Users/test/.ssh/id_ed25519'
+      )
       expect(result.success).toBe(true)
     })
 

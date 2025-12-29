@@ -267,7 +267,12 @@ export interface SSHErrorDetails {
   rawMessage: string
   suggestion: string
   canAutoFix: boolean
-  fixType?: 'chmod' | 'ssh-add' | 'copy-pubkey' | 'remove-known-host' | 'add-known-host'
+  fixType?:
+    | 'chmod'
+    | 'ssh-add'
+    | 'copy-pubkey'
+    | 'remove-known-host'
+    | 'add-known-host'
   fixParams?: Record<string, string>
 }
 
@@ -311,14 +316,21 @@ function detectErrorType(output: string): SSHErrorType | undefined {
  */
 export async function testSSHConnection(
   hostAlias: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _hostname?: string
 ): Promise<SSHConnectionTestResult> {
-  console.log('[ssh-service] Testing SSH connection via Rust backend:', hostAlias)
+  console.log(
+    '[ssh-service] Testing SSH connection via Rust backend:',
+    hostAlias
+  )
 
   try {
-    const result = await invoke<SSHConnectionTestResult>('test_ssh_connection', {
-      hostAlias,
-    })
+    const result = await invoke<SSHConnectionTestResult>(
+      'test_ssh_connection',
+      {
+        hostAlias,
+      }
+    )
     console.log('[ssh-service] SSH test result:', {
       success: result.success,
       output: result.output?.slice(0, 200),
@@ -352,7 +364,9 @@ interface KnownHostResult {
 export async function removeKnownHost(hostname: string): Promise<void> {
   console.log('[ssh-service] Removing known host via Rust backend:', hostname)
 
-  const result = await invoke<KnownHostResult>('remove_known_host', { hostname })
+  const result = await invoke<KnownHostResult>('remove_known_host', {
+    hostname,
+  })
   console.log('[ssh-service] Remove known host result:', result)
 
   if (!result.success) {
@@ -364,10 +378,16 @@ export async function removeKnownHost(hostname: string): Promise<void> {
  * Add a host to known_hosts file
  * Uses Rust backend with ssh-keyscan
  */
-export async function addKnownHost(hostname: string, port?: number): Promise<void> {
+export async function addKnownHost(
+  hostname: string,
+  port?: number
+): Promise<void> {
   console.log('[ssh-service] Adding known host via Rust backend:', hostname)
 
-  const result = await invoke<KnownHostResult>('add_known_host', { hostname, port })
+  const result = await invoke<KnownHostResult>('add_known_host', {
+    hostname,
+    port,
+  })
   console.log('[ssh-service] Add known host result:', result)
 
   if (!result.success) {

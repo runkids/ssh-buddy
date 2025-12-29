@@ -1,9 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { invoke } from '@tauri-apps/api/core'
-import {
-  getKeyTypeDisplayName,
-  type SSHKeyInfo,
-} from '../../lib/ssh-service'
+import { getKeyTypeDisplayName, type SSHKeyInfo } from '../../lib/ssh-service'
 
 // Mock the Tauri invoke function
 vi.mock('@tauri-apps/api/core', () => ({
@@ -112,7 +109,9 @@ describe('ssh-service', () => {
 
       const { readPublicKey } = await import('../../lib/ssh-service')
 
-      await expect(readPublicKey('nonexistent')).rejects.toThrow('Key not found')
+      await expect(readPublicKey('nonexistent')).rejects.toThrow(
+        'Key not found'
+      )
     })
   })
 
@@ -127,7 +126,9 @@ describe('ssh-service', () => {
       const { deleteSSHKey } = await import('../../lib/ssh-service')
       await deleteSSHKey('id_test')
 
-      expect(invoke).toHaveBeenCalledWith('delete_ssh_key', { keyName: 'id_test' })
+      expect(invoke).toHaveBeenCalledWith('delete_ssh_key', {
+        keyName: 'id_test',
+      })
     })
 
     it('should throw error on deletion failure', async () => {

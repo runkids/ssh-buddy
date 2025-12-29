@@ -205,7 +205,9 @@ export function HostDetail({
         handleTestConnection()
       } else if (result.needsPassphrase) {
         // Show message that user needs to run ssh-add manually
-        console.log('Key requires passphrase - user needs to run ssh-add manually')
+        console.log(
+          'Key requires passphrase - user needs to run ssh-add manually'
+        )
       }
     } catch (error) {
       console.error('Failed to add key to agent:', error)

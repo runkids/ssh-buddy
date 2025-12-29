@@ -56,7 +56,10 @@ export function TroubleshootingWizard({
   const [retestResult, setRetestResult] =
     useState<SSHConnectionTestResult | null>(null)
 
-  const rootCause = analyzeRootCause(connectionResult, preflightResult || undefined)
+  const rootCause = analyzeRootCause(
+    connectionResult,
+    preflightResult || undefined
+  )
 
   const currentStep = steps[currentStepIndex]
   const isLastStep = currentStepIndex === steps.length - 1

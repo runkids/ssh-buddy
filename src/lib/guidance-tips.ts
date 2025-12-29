@@ -29,10 +29,11 @@ export const SAME_KEY_WARNING: TipDefinition = {
   id: 'same-key-warning',
   type: 'warning',
   title: 'Same Key Warning',
-  description: 'This key is already used by another config for the same platform.',
+  description:
+    'This key is already used by another config for the same platform.',
   suggestions: [
     'If this is the same account, you can continue using it',
-    'If it\'s a different account, consider creating a new key for it',
+    "If it's a different account, consider creating a new key for it",
   ],
   details:
     'When multiple Host configs use the same key to connect to the same platform, they are treated as the same account. If you want to use different accounts, you need a separate key for each.',
@@ -44,22 +45,23 @@ export const HOST_KEY_CHANGED_TIP: TipDefinition = {
   type: 'warning',
   title: 'Why did this happen?',
   description:
-    'The remote host\'s key has changed. This usually occurs when the server is reinstalled or the platform updates its keys.',
+    "The remote host's key has changed. This usually occurs when the server is reinstalled or the platform updates its keys.",
   suggestions: [
     'If this is an expected change (e.g., server reset), you can safely remove the old key',
-    'If you\'re unsure why, consider verifying with the server administrator',
+    "If you're unsure why, consider verifying with the server administrator",
   ],
   details:
-    'SSH records each server\'s public key (stored in ~/.ssh/known_hosts). When a server\'s key doesn\'t match the record, SSH blocks the connection to protect you from man-in-the-middle attacks.',
+    "SSH records each server's public key (stored in ~/.ssh/known_hosts). When a server's key doesn't match the record, SSH blocks the connection to protect you from man-in-the-middle attacks.",
 }
 
 export const HOST_KEY_UNKNOWN_TIP: TipDefinition = {
   id: 'host-key-unknown',
   type: 'info',
   title: 'First-Time Connection',
-  description: 'This is your first time connecting to this host. You need to verify and save its key.',
+  description:
+    'This is your first time connecting to this host. You need to verify and save its key.',
   suggestions: [
-    'For well-known platforms (GitHub, GitLab, etc.), it\'s usually safe to add',
+    "For well-known platforms (GitHub, GitLab, etc.), it's usually safe to add",
     'For private servers, consider verifying the key fingerprint with the administrator',
   ],
   details:
@@ -102,14 +104,14 @@ export const SSH_AGENT_TIP: TipDefinition = {
   type: 'info',
   title: 'SSH Agent',
   description:
-    'The SSH agent stores your keys in memory so you don\'t have to enter the passphrase every time.',
+    "The SSH agent stores your keys in memory so you don't have to enter the passphrase every time.",
   suggestions: [
     'Add your key to the agent: ssh-add ~/.ssh/your_key',
     'On macOS, use --apple-use-keychain to store in Keychain',
     'The agent keeps your key until you log out or explicitly remove it',
   ],
   details:
-    'When you have a passphrase-protected key, SSH needs the passphrase to decrypt it. The SSH agent stores the decrypted key in memory, so subsequent connections don\'t need the passphrase. This is both convenient and secure.',
+    "When you have a passphrase-protected key, SSH needs the passphrase to decrypt it. The SSH agent stores the decrypted key in memory, so subsequent connections don't need the passphrase. This is both convenient and secure.",
 }
 
 export const PASSPHRASE_TIP: TipDefinition = {
@@ -168,7 +170,7 @@ export const IDENTITY_FILE_TIP: TipDefinition = {
     'Generate a new key if needed',
   ],
   details:
-    'SSH config points to a key file that doesn\'t exist. This could happen if you moved or renamed the key, or if the path is incorrect. Use the full path or ~ shorthand for home directory.',
+    "SSH config points to a key file that doesn't exist. This could happen if you moved or renamed the key, or if the path is incorrect. Use the full path or ~ shorthand for home directory.",
 }
 
 // Platform detection patterns

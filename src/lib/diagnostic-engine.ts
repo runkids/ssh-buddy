@@ -271,7 +271,7 @@ async function checkIdentityFilePermissions(
           }
         : undefined,
     }
-  } catch (error) {
+  } catch {
     return {
       id: 'identity_file_permissions',
       name: 'Key Permissions',
@@ -305,7 +305,7 @@ async function checkKeyInAgentStatus(
             params: { keyPath: identityPath },
           },
     }
-  } catch (error) {
+  } catch {
     return {
       id: 'key_in_agent',
       name: 'Key in Agent',
@@ -346,7 +346,7 @@ export async function executeFixAction(
       }
       return await fixKeyPermissions(action.params.keyPath)
 
-    case 'ssh-add':
+    case 'ssh-add': {
       if (!action.params?.keyPath) {
         return { success: false, message: 'No key path specified' }
       }
@@ -357,6 +357,7 @@ export async function executeFixAction(
         needsPassphrase: addResult.needsPassphrase,
         keyPath: action.params.keyPath,
       }
+    }
 
     // Other fix types would be handled here
     default:

@@ -2,7 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { PreflightPanel } from '../../components/hosts/PreflightPanel'
 import type { SSHHostConfig } from '../../lib/ssh-config'
-import type { PreflightResult, PreflightCheck } from '../../lib/diagnostic-engine'
+import type {
+  PreflightResult,
+  PreflightCheck,
+} from '../../lib/diagnostic-engine'
 
 // Mock the diagnostic-engine module
 vi.mock('../../lib/diagnostic-engine', () => ({
@@ -67,7 +70,10 @@ describe('PreflightPanel', () => {
     it('should show loading state when running checks', async () => {
       const { runPreflightChecks } = await import('../../lib/diagnostic-engine')
       vi.mocked(runPreflightChecks).mockImplementation(
-        () => new Promise((resolve) => setTimeout(() => resolve(createMockResult()), 100))
+        () =>
+          new Promise((resolve) =>
+            setTimeout(() => resolve(createMockResult()), 100)
+          )
       )
 
       render(
@@ -133,7 +139,9 @@ describe('PreflightPanel', () => {
   describe('Results Display', () => {
     it('should show all passed message when all checks pass', async () => {
       const { runPreflightChecks } = await import('../../lib/diagnostic-engine')
-      vi.mocked(runPreflightChecks).mockResolvedValueOnce(createMockResult(true))
+      vi.mocked(runPreflightChecks).mockResolvedValueOnce(
+        createMockResult(true)
+      )
 
       render(
         <PreflightPanel
@@ -215,7 +223,9 @@ describe('PreflightPanel', () => {
 
     it('should show Continue to Test button when all pass', async () => {
       const { runPreflightChecks } = await import('../../lib/diagnostic-engine')
-      vi.mocked(runPreflightChecks).mockResolvedValueOnce(createMockResult(true))
+      vi.mocked(runPreflightChecks).mockResolvedValueOnce(
+        createMockResult(true)
+      )
 
       render(
         <PreflightPanel
@@ -234,7 +244,9 @@ describe('PreflightPanel', () => {
 
     it('should show Re-run button after checks complete', async () => {
       const { runPreflightChecks } = await import('../../lib/diagnostic-engine')
-      vi.mocked(runPreflightChecks).mockResolvedValueOnce(createMockResult(true))
+      vi.mocked(runPreflightChecks).mockResolvedValueOnce(
+        createMockResult(true)
+      )
 
       render(
         <PreflightPanel
@@ -300,9 +312,8 @@ describe('PreflightPanel', () => {
     })
 
     it('should call executeFixAction when Fix button is clicked', async () => {
-      const { runPreflightChecks, executeFixAction } = await import(
-        '../../lib/diagnostic-engine'
-      )
+      const { runPreflightChecks, executeFixAction } =
+        await import('../../lib/diagnostic-engine')
       const mockResult = createMockResultWithFixableCheck()
       vi.mocked(runPreflightChecks).mockResolvedValueOnce(mockResult)
       vi.mocked(executeFixAction).mockResolvedValueOnce({
@@ -310,7 +321,9 @@ describe('PreflightPanel', () => {
         message: 'Fixed',
       })
       // Mock re-run after fix
-      vi.mocked(runPreflightChecks).mockResolvedValueOnce(createMockResult(true))
+      vi.mocked(runPreflightChecks).mockResolvedValueOnce(
+        createMockResult(true)
+      )
 
       render(
         <PreflightPanel
@@ -340,9 +353,8 @@ describe('PreflightPanel', () => {
 
   describe('Passphrase Dialog', () => {
     it('should show passphrase dialog when fix requires passphrase', async () => {
-      const { runPreflightChecks, executeFixAction } = await import(
-        '../../lib/diagnostic-engine'
-      )
+      const { runPreflightChecks, executeFixAction } =
+        await import('../../lib/diagnostic-engine')
       vi.mocked(runPreflightChecks).mockResolvedValueOnce(
         createMockResultWithFixableCheck('ssh-add')
       )
@@ -375,9 +387,8 @@ describe('PreflightPanel', () => {
     })
 
     it('should have password input and Add to Agent button', async () => {
-      const { runPreflightChecks, executeFixAction } = await import(
-        '../../lib/diagnostic-engine'
-      )
+      const { runPreflightChecks, executeFixAction } =
+        await import('../../lib/diagnostic-engine')
       vi.mocked(runPreflightChecks).mockResolvedValueOnce(
         createMockResultWithFixableCheck('ssh-add')
       )
@@ -401,7 +412,9 @@ describe('PreflightPanel', () => {
       fireEvent.click(screen.getByText('Fix'))
 
       await waitFor(() => {
-        expect(screen.getByPlaceholderText('Enter passphrase')).toBeInTheDocument()
+        expect(
+          screen.getByPlaceholderText('Enter passphrase')
+        ).toBeInTheDocument()
         expect(screen.getByText('Add to Agent')).toBeInTheDocument()
         expect(screen.getByText('Cancel')).toBeInTheDocument()
       })
@@ -415,7 +428,9 @@ describe('PreflightPanel', () => {
   describe('Continue Button', () => {
     it('should call onContinue when continue button is clicked', async () => {
       const { runPreflightChecks } = await import('../../lib/diagnostic-engine')
-      vi.mocked(runPreflightChecks).mockResolvedValueOnce(createMockResult(true))
+      vi.mocked(runPreflightChecks).mockResolvedValueOnce(
+        createMockResult(true)
+      )
 
       render(
         <PreflightPanel

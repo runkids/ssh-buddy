@@ -59,10 +59,16 @@ export async function checkKeyPermissions(
   keyPath: string
 ): Promise<PermissionCheckResult> {
   try {
-    console.log('[platform-utils] Checking key permissions via Rust backend:', keyPath)
-    const result = await invoke<RustPermissionCheckResult>('check_key_permissions', {
-      keyPath,
-    })
+    console.log(
+      '[platform-utils] Checking key permissions via Rust backend:',
+      keyPath
+    )
+    const result = await invoke<RustPermissionCheckResult>(
+      'check_key_permissions',
+      {
+        keyPath,
+      }
+    )
 
     return {
       isSecure: result.isValid,
@@ -91,10 +97,16 @@ export async function fixKeyPermissions(keyPath: string): Promise<{
   message: string
 }> {
   try {
-    console.log('[platform-utils] Fixing key permissions via Rust backend:', keyPath)
-    const result = await invoke<RustPermissionFixResult>('fix_key_permissions', {
-      keyPath,
-    })
+    console.log(
+      '[platform-utils] Fixing key permissions via Rust backend:',
+      keyPath
+    )
+    const result = await invoke<RustPermissionFixResult>(
+      'fix_key_permissions',
+      {
+        keyPath,
+      }
+    )
 
     return {
       success: result.success,
@@ -114,11 +126,16 @@ export async function fixKeyPermissions(keyPath: string): Promise<{
  * Uses Rust backend
  */
 export async function checkSSHDirPermissions(
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _sshDirPath?: string
 ): Promise<PermissionCheckResult> {
   try {
-    console.log('[platform-utils] Checking SSH dir permissions via Rust backend')
-    const result = await invoke<RustPermissionCheckResult>('check_ssh_dir_permissions')
+    console.log(
+      '[platform-utils] Checking SSH dir permissions via Rust backend'
+    )
+    const result = await invoke<RustPermissionCheckResult>(
+      'check_ssh_dir_permissions'
+    )
 
     return {
       isSecure: result.isValid,
@@ -128,7 +145,10 @@ export async function checkSSHDirPermissions(
       canFix: !result.isValid,
     }
   } catch (error) {
-    console.error('[platform-utils] Failed to check SSH dir permissions:', error)
+    console.error(
+      '[platform-utils] Failed to check SSH dir permissions:',
+      error
+    )
     return {
       isSecure: false,
       requiredMode: '700',
@@ -142,13 +162,16 @@ export async function checkSSHDirPermissions(
  * Fix SSH directory permissions
  * Uses Rust backend
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function fixSSHDirPermissions(_sshDirPath?: string): Promise<{
   success: boolean
   message: string
 }> {
   try {
     console.log('[platform-utils] Fixing SSH dir permissions via Rust backend')
-    const result = await invoke<RustPermissionFixResult>('fix_ssh_dir_permissions')
+    const result = await invoke<RustPermissionFixResult>(
+      'fix_ssh_dir_permissions'
+    )
 
     return {
       success: result.success,
