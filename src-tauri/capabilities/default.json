@@ -76,6 +76,7 @@
       "allow": [{ "path": "$HOME/.ssh/**" }]
     },
     "os:default",
-    "updater:default"
+    "updater:default",
+    "process:default"
   ]
 }
