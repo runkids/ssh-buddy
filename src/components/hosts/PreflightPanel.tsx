@@ -8,14 +8,25 @@ import {
   Wrench,
   SkipForward,
   RefreshCw,
+  KeyRound,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import type { SSHHostConfig } from '@/lib/ssh-config'
 import {
   runPreflightChecks,
   executeFixAction,
   type PreflightResult,
   type PreflightCheck,
+  type DiagnosticFixAction,
 } from '@/lib/diagnostic-engine'
 import { cn } from '@/lib/utils'
 
@@ -34,6 +45,13 @@ export function PreflightPanel({
   const [isRunning, setIsRunning] = useState(false)
   const [fixingId, setFixingId] = useState<string | null>(null)
 
+  // Passphrase dialog state
+  const [passphraseDialogOpen, setPassphraseDialogOpen] = useState(false)
+  const [passphrase, setPassphrase] = useState('')
+  const [pendingFixAction, setPendingFixAction] = useState<DiagnosticFixAction | null>(null)
+  const [passphraseError, setPassphraseError] = useState<string | null>(null)
+  const [isSubmittingPassphrase, setIsSubmittingPassphrase] = useState(false)
+
   const handleRunChecks = async () => {
     setIsRunning(true)
     setResult(null)
@@ -49,13 +67,35 @@ export function PreflightPanel({
     }
   }
 
-  const handleFix = async (check: PreflightCheck) => {
+  const handleFix = async (check: PreflightCheck, passphraseToUse?: string) => {
     if (!check.fixAction) return
 
     setFixingId(check.id)
     try {
-      const fixResult = await executeFixAction(check.fixAction)
+      const fixResult = await executeFixAction(check.fixAction, passphraseToUse)
+
+      // If passphrase is needed, show dialog
+      if (fixResult.needsPassphrase && !passphraseToUse) {
+        setPendingFixAction(check.fixAction)
+        setPassphraseError(null)
+        setPassphrase('')
+        setPassphraseDialogOpen(true)
+        setFixingId(null)
+        return
+      }
+
+      // If passphrase was wrong
+      if (fixResult.needsPassphrase && passphraseToUse) {
+        setPassphraseError(fixResult.message)
+        setIsSubmittingPassphrase(false)
+        return
+      }
+
       if (fixResult.success) {
+        // Close dialog if open
+        setPassphraseDialogOpen(false)
+        setPendingFixAction(null)
+        setPassphrase('')
         // Re-run checks after fix
         await handleRunChecks()
       }
@@ -63,6 +103,22 @@ export function PreflightPanel({
       console.error('Fix failed:', error)
     } finally {
       setFixingId(null)
+      setIsSubmittingPassphrase(false)
+    }
+  }
+
+  const handlePassphraseSubmit = async () => {
+    if (!pendingFixAction || !passphrase) return
+
+    setIsSubmittingPassphrase(true)
+    setPassphraseError(null)
+
+    // Find the check that matches the pending action
+    const check = result?.checks.find(
+      (c) => c.fixAction?.id === pendingFixAction.id
+    )
+    if (check) {
+      await handleFix(check, passphrase)
     }
   }
 
@@ -77,7 +133,16 @@ export function PreflightPanel({
       if (check.fixAction) {
         setFixingId(check.id)
         try {
-          await executeFixAction(check.fixAction)
+          const fixResult = await executeFixAction(check.fixAction)
+          // If any check needs passphrase, stop and show dialog
+          if (fixResult.needsPassphrase) {
+            setPendingFixAction(check.fixAction)
+            setPassphraseError(null)
+            setPassphrase('')
+            setPassphraseDialogOpen(true)
+            setFixingId(null)
+            return
+          }
         } catch (error) {
           console.error(`Fix for ${check.id} failed:`, error)
         }
@@ -205,6 +270,66 @@ export function PreflightPanel({
           the connection.
         </p>
       )}
+
+      {/* Passphrase Dialog */}
+      <Dialog open={passphraseDialogOpen} onOpenChange={setPassphraseDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="h-5 w-5" />
+              Enter Passphrase
+            </DialogTitle>
+            <DialogDescription>
+              This SSH key is protected with a passphrase. Enter it to add the key to the SSH agent.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <Input
+              type="password"
+              placeholder="Enter passphrase"
+              value={passphrase}
+              onChange={(e) => setPassphrase(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && passphrase) {
+                  handlePassphraseSubmit()
+                }
+              }}
+              autoFocus
+            />
+            {passphraseError && (
+              <p className="text-sm text-red-600 dark:text-red-400">
+                {passphraseError}
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setPassphraseDialogOpen(false)
+                setPendingFixAction(null)
+                setPassphrase('')
+                setPassphraseError(null)
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handlePassphraseSubmit}
+              disabled={!passphrase || isSubmittingPassphrase}
+            >
+              {isSubmittingPassphrase ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                'Add to Agent'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

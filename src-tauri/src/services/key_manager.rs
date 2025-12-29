@@ -9,7 +9,7 @@ use tokio::fs;
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 
-/// 密鑰生成選項
+/// Key generation options
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GenerateKeyOptions {
@@ -19,29 +19,24 @@ pub struct GenerateKeyOptions {
     pub passphrase: Option<String>,
 }
 
-/// SSH 密鑰管理服務
+/// SSH key management service
 pub struct KeyManager {
     ssh_dir: PathBuf,
 }
 
 impl KeyManager {
-    /// 建立新的 KeyManager 實例
+    /// Create a new KeyManager instance
     pub fn new() -> SshResult<Self> {
         let home = dirs::home_dir().ok_or(SshBuddyError::HomeDirNotFound)?;
         let ssh_dir = home.join(".ssh");
         Ok(Self { ssh_dir })
     }
 
-    /// 取得 SSH 目錄路徑
-    pub fn ssh_dir(&self) -> &PathBuf {
-        &self.ssh_dir
-    }
-
-    /// 列出所有 SSH 密鑰
+    /// List all SSH keys
     pub async fn list_keys(&self) -> SshResult<Vec<SSHKeyInfo>> {
         let mut keys = Vec::new();
 
-        // 確保 SSH 目錄存在
+        // Ensure SSH directory exists
         if !self.ssh_dir.exists() {
             return Ok(keys);
         }
@@ -51,7 +46,7 @@ impl KeyManager {
         while let Some(entry) = entries.next_entry().await? {
             let path = entry.path();
 
-            // 只處理 .pub 檔案
+            // Only process .pub files
             if path.extension().map_or(false, |ext| ext == "pub") {
                 if let Some(key_info) = self.parse_public_key_file(&path).await {
                     keys.push(key_info);
@@ -59,32 +54,36 @@ impl KeyManager {
             }
         }
 
-        // 按名稱排序
+        // Sort by name
         keys.sort_by(|a, b| a.name.cmp(&b.name));
 
         Ok(keys)
     }
 
-    /// 解析公鑰檔案並建立 SSHKeyInfo
+    /// Parse public key file and create SSHKeyInfo
     async fn parse_public_key_file(&self, pub_key_path: &PathBuf) -> Option<SSHKeyInfo> {
         let file_name = pub_key_path.file_stem()?.to_str()?;
         let private_key_path = self.ssh_dir.join(file_name);
 
-        // 讀取公鑰內容
+        // Read public key content
         let pub_key_content = fs::read_to_string(pub_key_path).await.ok()?;
 
-        // 解析公鑰
+        // Parse public key
         let (key_type, fingerprint, comment, bit_size) =
             match PublicKey::from_openssh(&pub_key_content) {
                 Ok(pub_key) => {
-                    let key_type = KeyType::from(pub_key.algorithm().as_str());
+                    let algo_str = pub_key.algorithm().as_str().to_string();
+                    log::info!("[key_manager] Parsed key algorithm: {}", algo_str);
+                    let key_type = KeyType::from(algo_str.as_str());
+                    log::info!("[key_manager] Mapped to KeyType: {:?}", key_type);
                     let fingerprint = pub_key.fingerprint(ssh_key::HashAlg::Sha256).to_string();
                     let comment = pub_key.comment().to_string();
                     let bit_size = self.get_key_bit_size(&pub_key);
                     (key_type, Some(fingerprint), Some(comment), bit_size)
                 }
-                Err(_) => {
-                    // 無法解析，嘗試從檔案名稱推斷類型
+                Err(e) => {
+                    // Cannot parse, try to infer type from filename
+                    log::warn!("[key_manager] Failed to parse public key: {:?}", e);
                     let key_type = self.infer_key_type_from_name(file_name);
                     (key_type, None, None, None)
                 }
@@ -102,16 +101,16 @@ impl KeyManager {
         })
     }
 
-    /// 從公鑰取得 bit size
+    /// Get bit size from public key
     fn get_key_bit_size(&self, pub_key: &PublicKey) -> Option<u32> {
         match pub_key.key_data() {
             ssh_key::public::KeyData::Rsa(rsa) => {
-                // RSA 密鑰的 bit size 是 modulus 的位數
+                // RSA key bit size is the number of bits in the modulus
                 Some((rsa.n.as_bytes().len() * 8) as u32)
             }
             ssh_key::public::KeyData::Ed25519(_) => Some(256),
             ssh_key::public::KeyData::Ecdsa(ecdsa) => {
-                // ECDSA 密鑰的 bit size 取決於曲線
+                // ECDSA key bit size depends on the curve
                 match ecdsa.curve() {
                     ssh_key::EcdsaCurve::NistP256 => Some(256),
                     ssh_key::EcdsaCurve::NistP384 => Some(384),
@@ -122,7 +121,7 @@ impl KeyManager {
         }
     }
 
-    /// 從檔案名稱推斷密鑰類型
+    /// Infer key type from filename
     fn infer_key_type_from_name(&self, name: &str) -> KeyType {
         let name_lower = name.to_lowercase();
         if name_lower.contains("ed25519") {
@@ -138,9 +137,9 @@ impl KeyManager {
         }
     }
 
-    /// 讀取公鑰內容
+    /// Read public key content
     pub async fn read_public_key(&self, key_name: &str) -> SshResult<String> {
-        // 驗證密鑰名稱，防止路徑遍歷
+        // Validate key name to prevent path traversal
         validate_key_name(key_name)?;
 
         let pub_key_path = self.ssh_dir.join(format!("{}.pub", key_name));
@@ -155,11 +154,11 @@ impl KeyManager {
         Ok(content.trim().to_string())
     }
 
-    /// 取得密鑰詳細資訊
+    /// Get key details
     pub async fn get_key_details(&self, key_path: &str) -> SshResult<KeyDetails> {
         let path = PathBuf::from(key_path);
 
-        // 確保路徑在 SSH 目錄內
+        // Ensure path is within SSH directory
         let canonical_path = path.canonicalize().map_err(|_| SshBuddyError::KeyNotFound {
             path: key_path.to_string(),
         })?;
@@ -175,14 +174,14 @@ impl KeyManager {
             });
         }
 
-        // 讀取公鑰
+        // Read public key
         let content = fs::read_to_string(&path).await.map_err(|_| {
             SshBuddyError::KeyNotFound {
                 path: key_path.to_string(),
             }
         })?;
 
-        // 解析公鑰
+        // Parse public key
         let pub_key = PublicKey::from_openssh(&content)?;
 
         let key_type = KeyType::from(pub_key.algorithm().as_str());
@@ -198,22 +197,22 @@ impl KeyManager {
         })
     }
 
-    /// 生成新的 SSH 密鑰對
+    /// Generate a new SSH key pair
     pub async fn generate_key(&self, options: GenerateKeyOptions) -> SshResult<SSHKeyInfo> {
-        // 驗證密鑰名稱
+        // Validate key name
         validate_key_name(&options.name)?;
 
         let private_key_path = self.ssh_dir.join(&options.name);
         let public_key_path = self.ssh_dir.join(format!("{}.pub", &options.name));
 
-        // 檢查是否已存在
+        // Check if already exists
         if private_key_path.exists() || public_key_path.exists() {
             return Err(SshBuddyError::KeyAlreadyExists {
                 name: options.name.clone(),
             });
         }
 
-        // 確保 SSH 目錄存在
+        // Ensure SSH directory exists
         if !self.ssh_dir.exists() {
             fs::create_dir_all(&self.ssh_dir).await?;
             #[cfg(unix)]
@@ -223,7 +222,7 @@ impl KeyManager {
             }
         }
 
-        // 生成私鑰
+        // Generate private key
         let private_key = match options.key_type.to_lowercase().as_str() {
             "ed25519" => {
                 PrivateKey::random(&mut OsRng, Algorithm::Ed25519).map_err(|e| {
@@ -233,7 +232,7 @@ impl KeyManager {
                 })?
             }
             "rsa" => {
-                // 使用 rsa crate 生成 4096-bit RSA 密鑰，然後轉換為 ssh-key 格式
+                // Use rsa crate to generate 4096-bit RSA key, then convert to ssh-key format
                 use rsa::RsaPrivateKey;
                 use ssh_key::private::RsaKeypair;
 
@@ -243,7 +242,7 @@ impl KeyManager {
                     }
                 })?;
 
-                // 轉換為 ssh-key 的 RsaKeypair
+                // Convert to ssh-key's RsaKeypair
                 let rsa_keypair = RsaKeypair::try_from(rsa_private).map_err(|e| {
                     SshBuddyError::Unknown {
                         message: format!("Failed to convert RSA key: {}", e),
@@ -259,10 +258,10 @@ impl KeyManager {
             }
         };
 
-        // 設定 comment
+        // Set comment
         let comment = options.comment.as_deref().unwrap_or("");
 
-        // 序列化私鑰（可選加密）
+        // Serialize private key (optionally encrypted)
         let private_key_pem = if let Some(passphrase) = &options.passphrase {
             if !passphrase.is_empty() {
                 private_key
@@ -289,40 +288,40 @@ impl KeyManager {
                 })?
         };
 
-        // 序列化公鑰
+        // Serialize public key
         let public_key = private_key.public_key();
         let public_key_openssh = public_key.to_openssh().map_err(|e| SshBuddyError::Unknown {
             message: format!("Failed to serialize public key: {}", e),
         })?;
 
-        // 公鑰格式：<algorithm> <base64> <comment>
+        // Public key format: <algorithm> <base64> <comment>
         let public_key_content = if comment.is_empty() {
             public_key_openssh
         } else {
             format!("{} {}", public_key_openssh.trim(), comment)
         };
 
-        // 寫入私鑰
+        // Write private key
         fs::write(&private_key_path, private_key_pem.as_bytes()).await?;
 
-        // 設定私鑰權限為 600
+        // Set private key permissions to 600
         #[cfg(unix)]
         {
             let perms = std::fs::Permissions::from_mode(0o600);
             fs::set_permissions(&private_key_path, perms).await?;
         }
 
-        // 寫入公鑰
+        // Write public key
         fs::write(&public_key_path, format!("{}\n", public_key_content)).await?;
 
-        // 設定公鑰權限為 644
+        // Set public key permissions to 644
         #[cfg(unix)]
         {
             let perms = std::fs::Permissions::from_mode(0o644);
             fs::set_permissions(&public_key_path, perms).await?;
         }
 
-        // 取得密鑰資訊
+        // Get key information
         let key_type = KeyType::from(public_key.algorithm().as_str());
         let fingerprint = public_key.fingerprint(ssh_key::HashAlg::Sha256).to_string();
         let bit_size = self.get_key_bit_size(&public_key);
@@ -349,9 +348,9 @@ impl KeyManager {
         })
     }
 
-    /// 刪除 SSH 密鑰對
+    /// Delete SSH key pair
     pub async fn delete_key(&self, key_name: &str) -> SshResult<()> {
-        // 驗證密鑰名稱
+        // Validate key name
         validate_key_name(key_name)?;
 
         let private_key_path = self.ssh_dir.join(key_name);
@@ -359,14 +358,14 @@ impl KeyManager {
 
         let mut deleted = false;
 
-        // 刪除私鑰
+        // Delete private key
         if private_key_path.exists() {
             fs::remove_file(&private_key_path).await?;
             deleted = true;
             log::info!("[key_manager] Deleted private key: {}", key_name);
         }
 
-        // 刪除公鑰
+        // Delete public key
         if public_key_path.exists() {
             fs::remove_file(&public_key_path).await?;
             deleted = true;

@@ -321,11 +321,24 @@ async function checkKeyInAgentStatus(
 // ============================================================
 
 /**
+ * Fix action result with optional passphrase requirement
+ */
+export interface FixActionResult {
+  success: boolean
+  message: string
+  needsPassphrase?: boolean
+  keyPath?: string
+}
+
+/**
  * Execute a diagnostic fix action
+ * @param action - The action to execute
+ * @param passphrase - Optional passphrase for ssh-add actions
  */
 export async function executeFixAction(
-  action: DiagnosticFixAction
-): Promise<{ success: boolean; message: string }> {
+  action: DiagnosticFixAction,
+  passphrase?: string
+): Promise<FixActionResult> {
   switch (action.type) {
     case 'chmod':
       if (!action.params?.keyPath) {
@@ -337,10 +350,12 @@ export async function executeFixAction(
       if (!action.params?.keyPath) {
         return { success: false, message: 'No key path specified' }
       }
-      const addResult = await addKeyToAgent(action.params.keyPath)
+      const addResult = await addKeyToAgent(action.params.keyPath, passphrase)
       return {
         success: addResult.success,
         message: addResult.message,
+        needsPassphrase: addResult.needsPassphrase,
+        keyPath: action.params.keyPath,
       }
 
     // Other fix types would be handled here

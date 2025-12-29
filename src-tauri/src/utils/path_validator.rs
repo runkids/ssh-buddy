@@ -1,37 +1,37 @@
 use crate::models::{SshBuddyError, SshResult};
 use std::path::Path;
 
-/// 驗證 SSH 密鑰名稱，防止路徑遍歷攻擊
+/// Validate SSH key name to prevent path traversal attacks
 pub fn validate_key_name(key_name: &str) -> SshResult<()> {
-    // 檢查空值
+    // Check for empty value
     if key_name.is_empty() {
         return Err(SshBuddyError::InvalidKeyName {
             message: "Key name cannot be empty".to_string(),
         });
     }
 
-    // 檢查路徑分隔符
+    // Check for path separators
     if key_name.contains('/') || key_name.contains('\\') {
         return Err(SshBuddyError::PathTraversalDetected {
             path: key_name.to_string(),
         });
     }
 
-    // 檢查特殊路徑名稱
+    // Check for special path names
     if key_name == "." || key_name == ".." || key_name.starts_with('.') && key_name.len() == 2 {
         return Err(SshBuddyError::PathTraversalDetected {
             path: key_name.to_string(),
         });
     }
 
-    // 檢查 null 字節
+    // Check for null bytes
     if key_name.contains('\0') {
         return Err(SshBuddyError::InvalidKeyName {
             message: "Key name contains null bytes".to_string(),
         });
     }
 
-    // 檢查長度限制
+    // Check length limit
     if key_name.len() > 255 {
         return Err(SshBuddyError::InvalidKeyName {
             message: "Key name too long (max 255 characters)".to_string(),
@@ -41,9 +41,10 @@ pub fn validate_key_name(key_name: &str) -> SshResult<()> {
     Ok(())
 }
 
-/// 驗證路徑是否在 SSH 目錄內
+/// Validate path is within SSH directory
+#[allow(dead_code)]
 pub fn validate_path_in_ssh_dir(path: &Path, ssh_dir: &Path) -> SshResult<()> {
-    // 規範化路徑
+    // Canonicalize path
     let canonical_path = path.canonicalize().map_err(|_| SshBuddyError::InvalidPath {
         message: format!("Cannot resolve path: {}", path.display()),
     })?;
@@ -54,7 +55,7 @@ pub fn validate_path_in_ssh_dir(path: &Path, ssh_dir: &Path) -> SshResult<()> {
             message: format!("Cannot resolve SSH directory: {}", ssh_dir.display()),
         })?;
 
-    // 確保路徑在 SSH 目錄內
+    // Ensure path is within SSH directory
     if !canonical_path.starts_with(&canonical_ssh_dir) {
         return Err(SshBuddyError::PathTraversalDetected {
             path: path.display().to_string(),
@@ -64,23 +65,24 @@ pub fn validate_path_in_ssh_dir(path: &Path, ssh_dir: &Path) -> SshResult<()> {
     Ok(())
 }
 
-/// 驗證主機名，防止命令注入
+/// Validate hostname to prevent command injection
+#[allow(dead_code)]
 pub fn validate_hostname(hostname: &str) -> SshResult<()> {
-    // 檢查空值
+    // Check for empty value
     if hostname.is_empty() {
         return Err(SshBuddyError::InvalidPath {
             message: "Hostname cannot be empty".to_string(),
         });
     }
 
-    // 檢查長度
+    // Check length
     if hostname.len() > 255 {
         return Err(SshBuddyError::InvalidPath {
             message: "Hostname too long".to_string(),
         });
     }
 
-    // 只允許安全字符：字母、數字、點、連字符、下劃線、冒號（IPv6）、方括號（IPv6）
+    // Only allow safe characters: letters, numbers, dots, hyphens, underscores, colons (IPv6), brackets (IPv6)
     let is_valid = hostname.chars().all(|c| {
         c.is_ascii_alphanumeric()
             || c == '.'

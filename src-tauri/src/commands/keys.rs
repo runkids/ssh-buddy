@@ -1,7 +1,7 @@
 use crate::models::{KeyDetails, SSHKeyInfo, SshBuddyError};
 use crate::services::{GenerateKeyOptions, KeyManager};
 
-/// 列出所有 SSH 密鑰
+/// List all SSH keys
 #[tauri::command]
 pub async fn list_ssh_keys() -> Result<Vec<SSHKeyInfo>, SshBuddyError> {
     log::info!("[keys] Listing SSH keys");
@@ -11,7 +11,7 @@ pub async fn list_ssh_keys() -> Result<Vec<SSHKeyInfo>, SshBuddyError> {
     Ok(keys)
 }
 
-/// 讀取公鑰內容
+/// Read public key content
 #[tauri::command]
 pub async fn read_public_key(key_name: String) -> Result<String, SshBuddyError> {
     log::info!("[keys] Reading public key: {}", key_name);
@@ -20,7 +20,7 @@ pub async fn read_public_key(key_name: String) -> Result<String, SshBuddyError> 
     Ok(content)
 }
 
-/// 取得密鑰詳細資訊
+/// Get key details
 #[tauri::command]
 pub async fn get_key_details(key_path: String) -> Result<KeyDetails, SshBuddyError> {
     log::info!("[keys] Getting key details: {}", key_path);
@@ -29,7 +29,7 @@ pub async fn get_key_details(key_path: String) -> Result<KeyDetails, SshBuddyErr
     Ok(details)
 }
 
-/// 生成新的 SSH 密鑰對
+/// Generate a new SSH key pair
 #[tauri::command]
 pub async fn generate_ssh_key(options: GenerateKeyOptions) -> Result<SSHKeyInfo, SshBuddyError> {
     log::info!(
@@ -43,7 +43,7 @@ pub async fn generate_ssh_key(options: GenerateKeyOptions) -> Result<SSHKeyInfo,
     Ok(key_info)
 }
 
-/// 刪除 SSH 密鑰對
+/// Delete an SSH key pair
 #[tauri::command]
 pub async fn delete_ssh_key(key_name: String) -> Result<(), SshBuddyError> {
     log::info!("[keys] Deleting key: {}", key_name);

@@ -3,7 +3,7 @@ use thiserror::Error;
 
 #[derive(Error, Debug, Deserialize, Clone)]
 pub enum SshBuddyError {
-    // 密鑰錯誤
+    // Key errors
     #[error("Key not found: {path}")]
     KeyNotFound { path: String },
 
@@ -16,7 +16,7 @@ pub enum SshBuddyError {
     #[error("Key permissions too open: {path}")]
     KeyPermissionsTooOpen { path: String },
 
-    // 安全錯誤
+    // Security errors
     #[error("Invalid path: {message}")]
     InvalidPath { message: String },
 
@@ -26,7 +26,7 @@ pub enum SshBuddyError {
     #[error("Invalid key name: {message}")]
     InvalidKeyName { message: String },
 
-    // 連線錯誤
+    // Connection errors
     #[error("Host key changed: {hostname}")]
     HostKeyChanged { hostname: String },
 
@@ -42,7 +42,7 @@ pub enum SshBuddyError {
     #[error("DNS resolution failed: {hostname}")]
     DnsResolutionFailed { hostname: String },
 
-    // 認證錯誤
+    // Authentication errors
     #[error("Permission denied: {reason}")]
     PermissionDenied { reason: String },
 
@@ -52,7 +52,7 @@ pub enum SshBuddyError {
     #[error("Key not in agent: {path}")]
     KeyNotInAgent { path: String },
 
-    // 系統錯誤
+    // System errors
     #[error("IO error: {message}")]
     IoError { message: String },
 
@@ -82,16 +82,16 @@ impl From<ssh_key::Error> for SshBuddyError {
     }
 }
 
-// 用於 Tauri command 回傳
+// Result type for Tauri command returns
 pub type SshResult<T> = Result<T, SshBuddyError>;
 
-// 實現 Serialize for Tauri IPC
+// Implement Serialize for Tauri IPC
 impl serde::Serialize for SshBuddyError {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        // 序列化為包含 type 和 message 的結構
+        // Serialize as a struct containing type and message
         use serde::ser::SerializeStruct;
         let mut state = serializer.serialize_struct("SshBuddyError", 2)?;
         state.serialize_field("type", &self.error_type())?;

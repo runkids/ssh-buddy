@@ -32,7 +32,14 @@ tauri-plugin-os = "2"
 # SSH 操作相關依賴
 ssh-key = { version = "0.6", features = ["ed25519", "rsa", "p256", "p384", "std", "rand_core", "encryption"] }
 rsa = "0.9"
-tokio = { version = "1", features = ["fs", "io-util", "sync"] }
+tokio = { version = "1", features = ["fs", "io-util", "sync", "net", "time"] }
 thiserror = "1.0"
 dirs = "5"
 rand = "0.8"
+byteorder = "1.5"
+
+# SSH 連線測試
+russh = "0.46"
+russh-keys = "0.46"
+async-trait = "0.1"
+base64 = "0.22"

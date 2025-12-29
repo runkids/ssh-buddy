@@ -611,7 +611,7 @@
 }
 
 @utility animate-walk {
-  animation: walk 12s ease-in-out infinite;
+  animation: walk 24s ease-in-out infinite;
 }
 
 /* Hover glow transition */

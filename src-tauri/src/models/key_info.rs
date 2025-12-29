@@ -40,6 +40,7 @@ impl std::fmt::Display for KeyType {
 #[serde(rename_all = "camelCase")]
 pub struct SSHKeyInfo {
     pub name: String,
+    #[serde(rename = "type")]
     pub key_type: KeyType,
     pub has_public_key: bool,
     pub public_key_path: String,
@@ -55,5 +56,6 @@ pub struct KeyDetails {
     pub bit_size: u32,
     pub fingerprint: String,
     pub comment: String,
+    #[serde(rename = "type")]
     pub key_type: KeyType,
 }
