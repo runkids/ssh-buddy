@@ -252,15 +252,139 @@ jobs:
             echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
           fi
 
-      - name: Wait for release assets to be available
-        run: sleep 120
-
-      - name: Download and calculate SHA256
-        id: sha
+      - name: Wait for release assets via GitHub API
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
-          VERSION=${{ steps.version.outputs.VERSION }}
-          curl -L "https://github.com/runkids/ssh-buddy/releases/download/v${VERSION}/SSH.Buddy_${VERSION}_aarch64.dmg" -o aarch64.dmg
-          echo "SHA256_AARCH64=$(shasum -a 256 aarch64.dmg | cut -d ' ' -f 1)" >> $GITHUB_OUTPUT
+          ASSET_NAME="SSH.Buddy_${VERSION}_aarch64.dmg"
+          MAX_ATTEMPTS=30
+          ATTEMPT=0
+
+          echo "Waiting for release asset: $ASSET_NAME"
+
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS..."
+
+            # Get release info via GitHub API
+            RELEASE_INFO=$(curl -s -H "Authorization: token $GH_TOKEN" \
+              "https://api.github.com/repos/${{ github.repository }}/releases/tags/v${VERSION}" 2>/dev/null || echo "{}")
+
+            # Check if release exists and is published
+            DRAFT=$(echo "$RELEASE_INFO" | jq -r '.draft // true')
+            if [ "$DRAFT" = "true" ]; then
+              echo "Release is still a draft, waiting..."
+              sleep 30
+              continue
+            fi
+
+            # Check if asset exists and get its state
+            ASSET_INFO=$(echo "$RELEASE_INFO" | jq -r ".assets[] | select(.name == \"$ASSET_NAME\")" 2>/dev/null || echo "")
+
+            if [ -n "$ASSET_INFO" ]; then
+              ASSET_STATE=$(echo "$ASSET_INFO" | jq -r '.state')
+              ASSET_SIZE=$(echo "$ASSET_INFO" | jq -r '.size')
+
+              if [ "$ASSET_STATE" = "uploaded" ] && [ "$ASSET_SIZE" -gt 0 ]; then
+                echo "Asset found and fully uploaded (size: $ASSET_SIZE bytes)"
+                echo "EXPECTED_SIZE=$ASSET_SIZE" >> $GITHUB_ENV
+                break
+              else
+                echo "Asset state: $ASSET_STATE, size: $ASSET_SIZE - waiting for upload to complete..."
+              fi
+            else
+              echo "Asset not found yet..."
+            fi
+
+            sleep 30
+          done
+
+          if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
+            echo "::error::Timeout waiting for release asset after $MAX_ATTEMPTS attempts"
+            exit 1
+          fi
+
+      - name: Download and verify SHA256 with retry
+        id: sha
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          ASSET_URL="https://github.com/${{ github.repository }}/releases/download/v${VERSION}/SSH.Buddy_${VERSION}_aarch64.dmg"
+          MAX_RETRIES=5
+          RETRY_DELAY=10
+
+          download_with_retry() {
+            local output_file=$1
+            local attempt=0
+
+            while [ $attempt -lt $MAX_RETRIES ]; do
+              attempt=$((attempt + 1))
+              echo "Download attempt $attempt/$MAX_RETRIES..."
+
+              if curl -fSL --retry 3 --retry-delay 5 "$ASSET_URL" -o "$output_file"; then
+                # Verify file size if we have expected size
+                if [ -n "$EXPECTED_SIZE" ]; then
+                  ACTUAL_SIZE=$(stat -c%s "$output_file" 2>/dev/null || stat -f%z "$output_file" 2>/dev/null)
+                  if [ "$ACTUAL_SIZE" -eq "$EXPECTED_SIZE" ]; then
+                    echo "Download successful, size verified: $ACTUAL_SIZE bytes"
+                    return 0
+                  else
+                    echo "Size mismatch: expected $EXPECTED_SIZE, got $ACTUAL_SIZE"
+                  fi
+                else
+                  # No expected size, just check file exists and is non-empty
+                  if [ -s "$output_file" ]; then
+                    echo "Download successful"
+                    return 0
+                  fi
+                fi
+              fi
+
+              echo "Download failed or verification failed, retrying in ${RETRY_DELAY}s..."
+              sleep $RETRY_DELAY
+              RETRY_DELAY=$((RETRY_DELAY * 2))
+            done
+
+            return 1
+          }
+
+          # Download twice and verify SHA256 matches to ensure consistency
+          echo "Downloading file (first copy)..."
+          if ! download_with_retry "aarch64_1.dmg"; then
+            echo "::error::Failed to download asset after $MAX_RETRIES attempts"
+            exit 1
+          fi
+
+          SHA256_1=$(shasum -a 256 aarch64_1.dmg | cut -d ' ' -f 1)
+          echo "First SHA256: $SHA256_1"
+
+          # Wait a moment and download again to verify consistency
+          sleep 5
+
+          echo "Downloading file (second copy for verification)..."
+          if ! download_with_retry "aarch64_2.dmg"; then
+            echo "::error::Failed to download asset for verification"
+            exit 1
+          fi
+
+          SHA256_2=$(shasum -a 256 aarch64_2.dmg | cut -d ' ' -f 1)
+          echo "Second SHA256: $SHA256_2"
+
+          # Verify both downloads match
+          if [ "$SHA256_1" != "$SHA256_2" ]; then
+            echo "::error::SHA256 mismatch between downloads!"
+            echo "First:  $SHA256_1"
+            echo "Second: $SHA256_2"
+            echo "The release asset may still be uploading or was modified. Please retry."
+            exit 1
+          fi
+
+          echo "SHA256 verified consistent: $SHA256_1"
+          echo "SHA256_AARCH64=$SHA256_1" >> $GITHUB_OUTPUT
+
+          # Clean up
+          rm -f aarch64_1.dmg aarch64_2.dmg
 
       - name: Checkout homebrew-tap
         uses: actions/checkout@v4
