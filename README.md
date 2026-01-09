@@ -135,6 +135,24 @@ brew tap runkids/tap && brew install --cask ssh-buddy
 
 Or download the latest `.dmg` from [Releases](https://github.com/runkids/ssh-buddy/releases) and drag to Applications.
 
+<details>
+<summary>Homebrew: Troubleshooting SHA256 mismatch errors</summary>
+
+If you encounter a SHA256 mismatch error during installation:
+
+```bash
+# Clear Homebrew's download cache and retry
+brew cleanup ssh-buddy
+brew install --cask ssh-buddy
+
+# Or force reinstall
+brew reinstall --cask ssh-buddy
+```
+
+This usually happens when Homebrew has a cached download from a previous version.
+
+</details>
+
 ### Windows
 
 Download the latest `.msi` from [Releases](https://github.com/runkids/ssh-buddy/releases) and run the installer.
