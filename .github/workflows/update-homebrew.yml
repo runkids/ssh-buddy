@@ -66,7 +66,7 @@ jobs:
             exit 1
           fi
 
-      - name: Download and verify SHA256 with retry
+      - name: Download and calculate SHA256
         id: sha
         env:
           VERSION: ${{ steps.version.outputs.VERSION }}
@@ -74,78 +74,37 @@ jobs:
           ASSET_URL="https://github.com/${{ github.repository }}/releases/download/v${VERSION}/SSH.Buddy_${VERSION}_aarch64.dmg"
           MAX_RETRIES=5
           RETRY_DELAY=10
+          ATTEMPT=0
 
-          download_with_retry() {
-            local output_file=$1
-            local attempt=0
+          echo "Downloading: $ASSET_URL"
 
-            while [ $attempt -lt $MAX_RETRIES ]; do
-              attempt=$((attempt + 1))
-              echo "Download attempt $attempt/$MAX_RETRIES..."
+          while [ $ATTEMPT -lt $MAX_RETRIES ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+            echo "Download attempt $ATTEMPT/$MAX_RETRIES..."
 
-              if curl -fSL --retry 3 --retry-delay 5 "$ASSET_URL" -o "$output_file"; then
-                # Verify file size if we have expected size
-                if [ -n "$EXPECTED_SIZE" ]; then
-                  ACTUAL_SIZE=$(stat -c%s "$output_file" 2>/dev/null || stat -f%z "$output_file" 2>/dev/null)
-                  if [ "$ACTUAL_SIZE" -eq "$EXPECTED_SIZE" ]; then
-                    echo "Download successful, size verified: $ACTUAL_SIZE bytes"
-                    return 0
-                  else
-                    echo "Size mismatch: expected $EXPECTED_SIZE, got $ACTUAL_SIZE"
-                  fi
-                else
-                  # No expected size, just check file exists and is non-empty
-                  if [ -s "$output_file" ]; then
-                    echo "Download successful"
-                    return 0
-                  fi
-                fi
+            if curl -fSL --retry 3 --retry-delay 5 "$ASSET_URL" -o "ssh-buddy.dmg"; then
+              # Verify file size matches expected size from API
+              ACTUAL_SIZE=$(stat -c%s "ssh-buddy.dmg" 2>/dev/null || stat -f%z "ssh-buddy.dmg" 2>/dev/null)
+
+              if [ "$ACTUAL_SIZE" -eq "$EXPECTED_SIZE" ]; then
+                echo "Download successful, size verified: $ACTUAL_SIZE bytes"
+                SHA256=$(shasum -a 256 ssh-buddy.dmg | cut -d ' ' -f 1)
+                echo "SHA256: $SHA256"
+                echo "SHA256_AARCH64=$SHA256" >> $GITHUB_OUTPUT
+                rm -f ssh-buddy.dmg
+                exit 0
+              else
+                echo "Size mismatch: expected $EXPECTED_SIZE, got $ACTUAL_SIZE"
               fi
+            fi
 
-              echo "Download failed or verification failed, retrying in ${RETRY_DELAY}s..."
-              sleep $RETRY_DELAY
-              RETRY_DELAY=$((RETRY_DELAY * 2))
-            done
+            echo "Download failed or verification failed, retrying in ${RETRY_DELAY}s..."
+            sleep $RETRY_DELAY
+            RETRY_DELAY=$((RETRY_DELAY * 2))
+          done
 
-            return 1
-          }
-
-          # Download twice and verify SHA256 matches to ensure consistency
-          echo "Downloading file (first copy)..."
-          if ! download_with_retry "aarch64_1.dmg"; then
-            echo "::error::Failed to download asset after $MAX_RETRIES attempts"
-            exit 1
-          fi
-
-          SHA256_1=$(shasum -a 256 aarch64_1.dmg | cut -d ' ' -f 1)
-          echo "First SHA256: $SHA256_1"
-
-          # Wait a moment and download again to verify consistency
-          sleep 5
-
-          echo "Downloading file (second copy for verification)..."
-          if ! download_with_retry "aarch64_2.dmg"; then
-            echo "::error::Failed to download asset for verification"
-            exit 1
-          fi
-
-          SHA256_2=$(shasum -a 256 aarch64_2.dmg | cut -d ' ' -f 1)
-          echo "Second SHA256: $SHA256_2"
-
-          # Verify both downloads match
-          if [ "$SHA256_1" != "$SHA256_2" ]; then
-            echo "::error::SHA256 mismatch between downloads!"
-            echo "First:  $SHA256_1"
-            echo "Second: $SHA256_2"
-            echo "The release asset may still be uploading or was modified. Please retry."
-            exit 1
-          fi
-
-          echo "SHA256 verified consistent: $SHA256_1"
-          echo "SHA256_AARCH64=$SHA256_1" >> $GITHUB_OUTPUT
-
-          # Clean up
-          rm -f aarch64_1.dmg aarch64_2.dmg
+          echo "::error::Failed to download asset after $MAX_RETRIES attempts"
+          exit 1
 
       - name: Checkout homebrew-tap
         uses: actions/checkout@v4
